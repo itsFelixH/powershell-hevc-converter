@@ -117,7 +117,7 @@ $debugColor = "Magenta"
 
 # Log file path
 $logFileTimestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
-$logFilePath = Join-Path -Path $convertedFolder -ChildPath "${logFileTimestamp}_conversion.log"
+$logFilePath = Join-Path -Path $outputFolder -ChildPath "${logFileTimestamp}_conversion.log"
 
 # Define a function for logging to console and file
 function Write-Log {
