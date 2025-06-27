@@ -160,6 +160,13 @@ function Test-FFmpeg {
         $ffmpegVersion = (ffmpeg -version | Select-String -Pattern 'ffmpeg version').Line.Split()[2]
         $ffprobeVersion = (ffprobe -version | Select-String -Pattern 'ffprobe version').Line.Split()[2]
 
+        # Check if libx265 encoder is available
+        $x265EncoderInfo = ffmpeg -encoders | Select-String -Pattern 'libx265'
+        if (-not $x265EncoderInfo) {
+            Write-Log "FFmpeg found, but 'libx265' encoder is not available. Please use a build with HEVC support." -foregroundColor $errorColor
+            return $false
+        }
+
         Write-Log "FFmpeg version: $ffmpegVersion" -foregroundColor $infoColor
         Write-Log "FFprobe version: $ffprobeVersion" -foregroundColor $infoColor
 
@@ -173,23 +180,55 @@ function Test-FFmpeg {
 
 function Get-MediaInfo {
     param([string]$filePath)
+
+    Write-DebugInfo "Attempting to get media info for: $filePath"
+
+    if (-not (Test-Path $filePath -PathType Leaf)) {
+        Write-DebugInfo "File not found: $filePath"
+        return $null
+    }
+
     try {
-        $ffprobeOutput = & ffprobe -v error -select_streams v:0 -show_entries stream=codec_name, width, height, pix_fmt, duration, bit_rate -of json "$filePath" 2>&1
-        
-        # Check if output is valid JSON
-        if ($ffprobeOutput -match "^{") {
-            return $ffprobeOutput | ConvertFrom-Json
-        }
-        else {
-            Write-DebugInfo "FFprobe returned non-JSON output: $ffprobeOutput"
+        $ffprobeParams = @(
+            "-v", "error",
+            "-select_streams", "v:0",
+            "-show_entries", "stream=codec_name,width,height,pix_fmt,duration,bit_rate",
+            "-of", "json",
+            $filePath
+        )
+
+        Write-DebugInfo "Executing: ffprobe $($ffprobeParams -join ' ')"
+        $ffprobeOutput = & ffprobe @ffprobeParams 2>&1
+
+        if ($LASTEXITCODE -ne 0) {
+            Write-DebugInfo "FFprobe exited with code $LASTEXITCODE. Output: `n$ffprobeOutput"
             return $null
         }
+
+        $ffprobeOutputString = ($ffprobeOutput | Out-String).Trim()
+        if ($ffprobeOutputString.StartsWith("{") -and $ffprobeOutputString.EndsWith("}")) {
+            Write-DebugInfo "FFprobe returned valid JSON. Parsing..."
+            $mediaInfo = $ffprobeOutputString | ConvertFrom-Json -ErrorAction Stop
+        } else {
+            Write-DebugInfo "FFprobe did not return valid JSON for '$filePath'."
+            Write-DebugInfo "FFprobe raw output: `n$ffprobeOutputString"
+            return $null
+        }
+
+        if ($null -eq $mediaInfo -or $null -eq $mediaInfo.streams -or $mediaInfo.streams.Count -eq 0) {
+            Write-DebugInfo "Could not parse video stream info from ffprobe output for '$filePath'."
+            return $null
+        }
+
+        Write-DebugInfo "Successfully retrieved info for '$filePath'."
+        return $mediaInfo.streams[0]
     }
     catch {
-        Write-DebugInfo "FFprobe error: $($_.Exception.Message)"
+        Write-DebugInfo "FFprobe error for '$filePath': $($_.Exception.Message)"
         return $null
     }
 }
+
 
 # Validate parameters
 Write-DebugInfo "Script startup"
@@ -319,9 +358,21 @@ for ($batchNumber = 1; ($processedFiles -lt $totalFiles) -and -not $exitScript; 
         # Gather media information
         $mediaInfo = Get-MediaInfo -filePath $inputPath
         if ($mediaInfo) {
-            $streamInfo = $mediaInfo.streams[0]
-            Write-DebugInfo "Video codec: $($streamInfo.codec_name), Resolution: $($streamInfo.width)x$($streamInfo.height)"
-            Write-DebugInfo "Pixel format: $($streamInfo.pix_fmt), Duration: $($streamInfo.duration)s"
+            $width = [int]$mediaInfo.width
+            $height = [int]$mediaInfo.height
+            Write-DebugInfo "Video codec: $($mediaInfo.codec_name), Resolution: ${width}x${height}"
+            Write-DebugInfo "Pixel format: $($mediaInfo.pix_fmt), Duration: $($mediaInfo.duration)s"
+        }
+        else {
+            Write-Log "Failed to get media info for '$($file.Name)'. Skipping file." -foregroundColor $errorColor
+            continue # Skip to the next file in the loop
+        }
+
+        $isOddWidth = ($width % 2) -ne 0
+        $isOddHeight = ($height % 2) -ne 0
+
+        if ($isOddWidth -or $isOddHeight) {
+            Write-Log "Adjusting odd dimensions: ${width}x${height} -> $($width - $isOddWidth)x$($height - $isOddHeight)" -foregroundColor $warningColor
         }
 
         # Check for -WhatIf common parameter
@@ -333,10 +384,11 @@ for ($batchNumber = 1; ($processedFiles -lt $totalFiles) -and -not $exitScript; 
                     "-y",
                     "-loglevel", "error",
                     "-i", $inputPath,
+                    "-vf", "scale=$($width - $isOddWidth):$($height - $isOddHeight)"
                     "-map", "0",
                     "-map_chapters", "-1",
                     "-c:v", "libx265",
-                    "-crf", $crf,
+                    "-crf", "$crf",
                     "-preset", $preset,
                     "-c:a", "copy",
                     "-c:s", "copy",
