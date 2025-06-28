@@ -484,14 +484,14 @@ for ($batchNumber = 1; ($processedFiles -lt $totalFiles) -and -not $exitScript; 
 # Generate summary
 $totalTime = (Get-Date).Subtract($startTime)
 $totalSavedSpace = Format-FileSize ($totalOriginalSize - $totalConvertedSize)
-$avgFileTime = if ($totalFiles -gt 0) { $totalSeconds / $totalFiles } else { 0 }
+$avgFileTime = if ($totalFiles -gt 0) { $totalTime.TotalSeconds / $processedFiles } else { 0 }
 
 Write-Log "`n`n=================== CONVERSION SUMMARY ===================" -foregroundColor $infoColor
 Write-Log "Total processed: $processedFiles" -foregroundColor White
 Write-Log "Successful: $($successConversions.Count)" -foregroundColor $successColor
 Write-Log "Failed: $($failedConversions.Count)" -foregroundColor $errorColor
 Write-Log "Total time: $($totalTime.ToString('hh\:mm\:ss'))" -foregroundColor White
-if ($successConversions -gt 0) {
+if ($successConversions.Count -gt 0) {
     Write-Log "Original size: $(Format-FileSize $totalOriginalSize)" -foregroundColor White
     Write-Log "Converted size: $(Format-FileSize $totalConvertedSize)" -foregroundColor White
     if ($totalOriginalSize -gt 0) {
@@ -499,8 +499,10 @@ if ($successConversions -gt 0) {
         Write-Log "Compression ratio: $([Math]::Round(($totalConvertedSize / $totalOriginalSize) * 100, 2))%" -foregroundColor $infoColor
     }
     Write-Log "Average time/file: $([Math]::Round($avgFileTime, 1)) seconds"
-    Write-Log "Processing rate: $([Math]::Round($totalFiles / $totalTime.TotalHours, 2)) files/hour"
-    Write-Log "Processing speed: $([Math]::Round($totalOriginalSize / 1GB / $totalTime.TotalHours, 2)) GB/hour"
+    if ($totalTime.TotalHours -gt 0) {
+        Write-Log "Processing rate: $([Math]::Round($processedFiles / $totalTime.TotalHours, 2)) files/hour"
+        Write-Log "Processing speed: $([Math]::Round($totalOriginalSize / 1GB / $totalTime.TotalHours, 2)) GB/hour"
+    }
 }
 Write-Log "=======================================================`n" -foregroundColor $infoColor
 
