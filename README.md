@@ -94,6 +94,7 @@ The script implements robust error handling using `Try/Catch` blocks.
 
 The script uses a carefully selected set of FFmpeg options to ensure a good balance of quality, compression, and compatibility:
 
+* **Threading:** The libx265 encoder automatically manages its own threading.
 * **Pixel Format (`-pix_fmt yuv420p10le`):** This setting encodes the video in 10-bit color depth, which often results in smaller files than 8-bit for a given quality level, while avoiding banding artifacts.
 * **Video Tag (`-tag:v hvc1`):** This tag ensures broader compatibility, particularly with Apple devices and modern media players.
 * **Discard Chapters (`-map_chapters -1`):** This helps reduce metadata overhead in the output file, keeping it clean and lightweight.
