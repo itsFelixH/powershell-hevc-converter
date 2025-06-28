@@ -40,11 +40,6 @@ Slower presets generally yield better compression and quality for a given CRF, b
 Valid options: ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow, placebo.
 Default is "medium".
 
-.PARAMETER MaxThreads
-Specifies the maximum number of threads FFmpeg should use for encoding.
-A value of 0 (default) allows FFmpeg to automatically determine the optimal number of threads.
-Setting a specific number can be useful for resource management.
-
 .PARAMETER DebugMode
 A switch parameter that, when present, enables verbose debugging output to the console
 and detailed entries in the log file.
@@ -94,10 +89,6 @@ param (
 
     [ValidateSet("ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow", "placebo")]
     [string]$preset = "medium",
-
-    # Performance options
-    [Parameter(HelpMessage = "Maximum number of threads for FFmpeg. 0 for auto-detection.")]
-    [int]$MaxThreads = 0,
 
     # Debug mode switch
     [Parameter(HelpMessage = "Enable verbose debugging output.")]
@@ -157,8 +148,11 @@ function Format-FileSize {
 
 function Test-FFmpeg {
     try {
-        $ffmpegVersion = (ffmpeg -version | Select-String -Pattern 'ffmpeg version').Line.Split()[2]
-        $ffprobeVersion = (ffprobe -version | Select-String -Pattern 'ffprobe version').Line.Split()[2]
+        $ffmpegFullOutput = ffmpeg -version 2>&1 | Out-String
+        $ffmpegVersion = ($ffmpegFullOutput | Select-String -Pattern 'ffmpeg version').Line.Split()[2]
+
+        $ffprobeFullOutput = ffprobe -version 2>&1 | Out-String
+        $ffprobeVersion = ($ffprobeFullOutput | Select-String -Pattern 'ffprobe version').Line.Split()[2]
 
         # Check if libx265 encoder is available
         $x265EncoderInfo = ffmpeg -encoders | Select-String -Pattern 'libx265'
@@ -240,7 +234,6 @@ if ($batchSize -gt 0) {
 Write-DebugInfo "Debug mode: $DebugMode"
 Write-DebugInfo "Log to file: $LogToFile"
 Write-DebugInfo "CRF: $crf, Preset: $preset"
-Write-DebugInfo "MaxThreads: $MaxThreads"
 
 
 # Initialize log file
@@ -352,16 +345,17 @@ for ($batchNumber = 1; ($processedFiles -lt $totalFiles) -and -not $exitScript; 
 
         Write-Log "`n[$processedFiles/$totalFiles] Converting: $($file.Name) ($(Format-FileSize $originalSize))" -foregroundColor White
         Write-DebugInfo "Input path: $inputPath"
-        Write-DebugInfo "Source size: $(Format-FileSize $originalSize)"
         Write-DebugInfo "Output path: $outputPath"
+        Write-DebugInfo "Source size: $(Format-FileSize $originalSize)"
 
         # Gather media information
         $mediaInfo = Get-MediaInfo -filePath $inputPath
         if ($mediaInfo) {
             $width = [int]$mediaInfo.width
             $height = [int]$mediaInfo.height
+            $duration = [double]$mediaInfo.duration
             Write-DebugInfo "Video codec: $($mediaInfo.codec_name), Resolution: ${width}x${height}"
-            Write-DebugInfo "Pixel format: $($mediaInfo.pix_fmt), Duration: $($mediaInfo.duration)s"
+            Write-DebugInfo "Pixel format: $($mediaInfo.pix_fmt), Duration: ${duration}s"
         }
         else {
             Write-Log "Failed to get media info for '$($file.Name)'. Skipping file." -foregroundColor $errorColor
@@ -382,17 +376,19 @@ for ($batchNumber = 1; ($processedFiles -lt $totalFiles) -and -not $exitScript; 
                 $ffmpegParams = @(
                     "-stats",
                     "-y",
-                    "-loglevel", "error",
+                    "-loglevel", "info",
                     "-i", $inputPath,
                     "-vf", "scale=$($width - $isOddWidth):$($height - $isOddHeight)"
-                    "-map", "0",
+                    "-map", "0:v:0",
+                    "-map", "0:a?", 
+                    "-map", "0:s?", 
                     "-map_chapters", "-1",
                     "-c:v", "libx265",
                     "-crf", "$crf",
                     "-preset", $preset,
                     "-c:a", "copy",
                     "-c:s", "copy",
-                    "-x265-params", "log-level=error:threads=$MaxThreads",
+                    "-x265-params", "log-level=error",
                     "-pix_fmt", "yuv420p10le",
                     "-tag:v", "hvc1",
                     $outputPath
