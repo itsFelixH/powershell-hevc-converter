@@ -43,7 +43,6 @@ The script accepts the following parameters to customize its behavior:
 | `-batchSize` | `int` | `0` (Disabled) |Number of files to process per batch. The script will pause and prompt for continuation after each batch. Set to `0` to process all files at once. |
 | `-crf` | `int` | `23` | Constant Rate Factor (CRF) for `libx265` encoding (0-51). Lower values = higher quality, larger file size. |
 | `-preset` | `string` | `medium` | Encoding preset for `libx265`. Controls speed vs. compression efficiency. Options: `ultrafast`, `superfast`, `veryfast`, `faster`, `fast`, `medium`, `slow`, `slower`, `veryslow`, `placebo`. |
-| `-MaxThreads` | `int` | `0` (auto) | Maximum number of threads FFmpeg should use for encoding. `0` lets FFmpeg decide. |
 | `-DebugMode` | `switch` | (Absent) | Enables verbose debugging output to the console and detailed log entries. |
 | `-LogToFile` | `switch` | (Absent) | Writes all console output to a separate log file for later review. |
 
