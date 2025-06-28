@@ -203,7 +203,8 @@ function Get-MediaInfo {
         if ($ffprobeOutputString.StartsWith("{") -and $ffprobeOutputString.EndsWith("}")) {
             Write-DebugInfo "FFprobe returned valid JSON. Parsing..."
             $mediaInfo = $ffprobeOutputString | ConvertFrom-Json -ErrorAction Stop
-        } else {
+        }
+        else {
             Write-DebugInfo "FFprobe did not return valid JSON for '$filePath'."
             Write-DebugInfo "FFprobe raw output: `n$ffprobeOutputString"
             return $null
@@ -410,11 +411,19 @@ for ($batchNumber = 1; ($processedFiles -lt $totalFiles) -and -not $exitScript; 
                 $convertedSize = $convertedFile.Length
                 $totalConvertedSize += $convertedSize
 
-                $sizeDifference = Format-FileSize ($originalSize - $convertedSize)
+                $sizeChangeAmount = [Math]::Abs($originalSize - $convertedSize)
                 $compressionRatio = [Math]::Round(($convertedSize / $originalSize) * 100, 2)
 
                 Write-Log "Converted size: $(Format-FileSize $convertedSize) ($compressionRatio% of original)" -foregroundColor $successColor
-                Write-Log "Size reduced by: $sizeDifference" -foregroundColor $successColor
+                if ($convertedSize -lt $originalSize) {
+                    Write-Log "Size reduced by: $(Format-FileSize $sizeChangeAmount)" -foregroundColor $successColor
+                }
+                elseif ($convertedSize -gt $originalSize) {
+                    Write-Log "Size increased by: $(Format-FileSize $sizeChangeAmount)" -foregroundColor $warningColor
+                }
+                else {
+                    Write-Log "Size remained the same." -foregroundColor $infoColor
+                }
                 Write-Log "Conversion time: $((Get-Date).Subtract($fileStart).ToString('hh\:mm\:ss'))" -foregroundColor $infoColor
 
                 # Move original file to the output folder
@@ -483,8 +492,8 @@ for ($batchNumber = 1; ($processedFiles -lt $totalFiles) -and -not $exitScript; 
 
 # Generate summary
 $totalTime = (Get-Date).Subtract($startTime)
-$totalSavedSpace = Format-FileSize ($totalOriginalSize - $totalConvertedSize)
-$avgFileTime = if ($totalFiles -gt 0) { $totalTime.TotalSeconds / $processedFiles } else { 0 }
+$totalSavedSpaceAmount = [Math]::Abs($totalOriginalSize - $totalConvertedSize)
+$avgFileTime = if ($processedFiles -gt 0) { $totalTime.TotalSeconds / $processedFiles } else { 0 } 
 
 Write-Log "`n`n=================== CONVERSION SUMMARY ===================" -foregroundColor $infoColor
 Write-Log "Total processed: $processedFiles" -foregroundColor White
@@ -495,13 +504,25 @@ if ($successConversions.Count -gt 0) {
     Write-Log "Original size: $(Format-FileSize $totalOriginalSize)" -foregroundColor White
     Write-Log "Converted size: $(Format-FileSize $totalConvertedSize)" -foregroundColor White
     if ($totalOriginalSize -gt 0) {
-        Write-Log "Space saved: $totalSavedSpace" -foregroundColor $successColor
-        Write-Log "Compression ratio: $([Math]::Round(($totalConvertedSize / $totalOriginalSize) * 100, 2))%" -foregroundColor $infoColor
+        if ($totalConvertedSize -lt $totalOriginalSize) {
+            Write-Log "Total space saved: $(Format-FileSize $totalSavedSpaceAmount)" -foregroundColor $successColor
+        }
+        elseif ($totalConvertedSize -gt $totalOriginalSize) {
+            Write-Log "Total space increased: $(Format-FileSize $totalSavedSpaceAmount)" -foregroundColor $warningColor
+        }
+        else {
+            Write-Log "Total space remained the same." -foregroundColor $infoColor
+        }
+        Write-Log "Converted size (% of original): $([Math]::Round(($totalConvertedSize / $totalOriginalSize) * 100, 2))%" -foregroundColor $infoColor
     }
     Write-Log "Average time/file: $([Math]::Round($avgFileTime, 1)) seconds"
     if ($totalTime.TotalHours -gt 0) {
         Write-Log "Processing rate: $([Math]::Round($processedFiles / $totalTime.TotalHours, 2)) files/hour"
         Write-Log "Processing speed: $([Math]::Round($totalOriginalSize / 1GB / $totalTime.TotalHours, 2)) GB/hour"
+    }
+    else {
+        Write-Log "Processing rate: N/A (Total time too short)"
+        Write-Log "Processing speed: N/A (Total time too short)"
     }
 }
 Write-Log "=======================================================`n" -foregroundColor $infoColor
