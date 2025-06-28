@@ -305,8 +305,8 @@ if (-not $videoFiles) {
 
 # Initialize tracking variables
 $totalFiles = $videoFiles.Count
-$totalOriginalSize = 0
-$totalConvertedSize = 0
+$totalOriginalSize = 0 # Size of original files that were SUCCESSFULLY converted
+$totalConvertedSize = 0 # Size of converted files that were SUCCESSFULLY converted
 $failedConversions = @()
 $successConversions = @()
 $processedFiles = 0
@@ -339,7 +339,6 @@ for ($batchNumber = 1; ($processedFiles -lt $totalFiles) -and -not $exitScript; 
         $processedFiles++
         $fileStart = Get-Date
         $originalSize = $file.Length
-        $totalOriginalSize += $originalSize
 
         $inputPath = $file.FullName
         $outputPath = Join-Path $outputFolder ($file.BaseName + "_x265.mkv")
@@ -377,13 +376,13 @@ for ($batchNumber = 1; ($processedFiles -lt $totalFiles) -and -not $exitScript; 
                 $ffmpegParams = @(
                     "-stats",
                     "-y",
-                    "-loglevel", "info",
+                    "-loglevel", "info", # Keep loglevel info for ffmpeg progress info
                     "-i", $inputPath,
                     "-vf", "scale=$($width - $isOddWidth):$($height - $isOddHeight)"
-                    "-map", "0:v:0",
-                    "-map", "0:a?", 
-                    "-map", "0:s?", 
-                    "-map_chapters", "-1",
+                    "-map", "0:v:0", # Map only the first video stream
+                    "-map", "0:a?", # Map all audio streams if they exist
+                    "-map", "0:s?", # Map all subtitle streams if they exist
+                    "-map_chapters", "-1", # Do not copy chapters
                     "-c:v", "libx265",
                     "-crf", "$crf",
                     "-preset", $preset,
@@ -408,7 +407,9 @@ for ($batchNumber = 1; ($processedFiles -lt $totalFiles) -and -not $exitScript; 
 
                 # Verify conversion
                 $convertedFile = Get-Item $outputPath -ErrorAction Stop
+
                 $convertedSize = $convertedFile.Length
+                $totalOriginalSize += $originalSize
                 $totalConvertedSize += $convertedSize
 
                 $sizeChangeAmount = [Math]::Abs($originalSize - $convertedSize)
@@ -434,17 +435,25 @@ for ($batchNumber = 1; ($processedFiles -lt $totalFiles) -and -not $exitScript; 
             }
             catch {
                 $errorMsg = $_.Exception.Message
-                Write-Log "Conversion failed: $errorMsg" -foregroundColor $errorColor
+                Write-Log "Conversion failed for '$($file.Name)': $errorMsg" -foregroundColor $errorColor
 
-                # Save FFmpeg error log
-                if ($ffmpegOutput) {
-                    Write-Host "FFmpeg output:" -ForegroundColor $errorColor
+                # Output full FFmpeg log to console on failure
+                if ($ffmpegOutput.Count -gt 0) {
+                    Write-Host "--- FFmpeg Error Output for '$($file.Name)' ---" -ForegroundColor $errorColor
                     $ffmpegOutput | ForEach-Object { 
-                        Write-Host "  $_" -ForegroundColor $errorColor 
+                        Write-Host "   $_" -ForegroundColor $errorColor 
                     }
+                    Write-Host "----------------------------------------------" -ForegroundColor $errorColor
+                }
+
+                # Save FFmpeg error log to file
+                if ($ffmpegOutput.Count -gt 0) {
                     $logPath = Join-Path $failedFolder ($file.BaseName + ".log")
                     $ffmpegOutput | Out-File $logPath
                     Write-Log "FFmpeg error log saved to: $logPath" -foregroundColor $errorColor
+                }
+                else {
+                    Write-Log "No specific FFmpeg output captured for error, check general script log." -foregroundColor $warningColor
                 }
 
                 # Move failed file to the 'failed' folder
@@ -496,38 +505,43 @@ $totalSavedSpaceAmount = [Math]::Abs($totalOriginalSize - $totalConvertedSize)
 $avgFileTime = if ($processedFiles -gt 0) { $totalTime.TotalSeconds / $processedFiles } else { 0 } 
 
 Write-Log "`n`n=================== CONVERSION SUMMARY ===================" -foregroundColor $infoColor
-Write-Log "Total processed: $processedFiles" -foregroundColor White
-Write-Log "Successful: $($successConversions.Count)" -foregroundColor $successColor
-Write-Log "Failed: $($failedConversions.Count)" -foregroundColor $errorColor
-Write-Log "Total time: $($totalTime.ToString('hh\:mm\:ss'))" -foregroundColor White
-if ($successConversions.Count -gt 0) {
-    Write-Log "Original size: $(Format-FileSize $totalOriginalSize)" -foregroundColor White
-    Write-Log "Converted size: $(Format-FileSize $totalConvertedSize)" -foregroundColor White
+Write-Log "Total files found: $totalFiles" -foregroundColor White
+Write-Log "Files processed (attempted conversions): $processedFiles" -foregroundColor White
+Write-Log "Successful conversions: $($successConversions.Count)" -foregroundColor $successColor
+Write-Log "Failed conversions: $($failedConversions.Count)" -foregroundColor $errorColor
+Write-Log "Total script runtime: $($totalTime.ToString('hh\:mm\:ss'))" -foregroundColor White
+
+if ($successConversions.Count -gt 0) { 
+    Write-Log "Original size of successfully converted files: $(Format-FileSize $totalOriginalSize)" -foregroundColor White
+    Write-Log "Converted size of successfully converted files: $(Format-FileSize $totalConvertedSize)" -foregroundColor White
     if ($totalOriginalSize -gt 0) {
         if ($totalConvertedSize -lt $totalOriginalSize) {
-            Write-Log "Total space saved: $(Format-FileSize $totalSavedSpaceAmount)" -foregroundColor $successColor
+            Write-Log "Total space saved for successful conversions: $(Format-FileSize $totalSavedSpaceAmount)" -foregroundColor $successColor
         }
         elseif ($totalConvertedSize -gt $totalOriginalSize) {
-            Write-Log "Total space increased: $(Format-FileSize $totalSavedSpaceAmount)" -foregroundColor $warningColor
+            Write-Log "Total space increased for successful conversions: $(Format-FileSize $totalSavedSpaceAmount)" -foregroundColor $warningColor
         }
         else {
-            Write-Log "Total space remained the same." -foregroundColor $infoColor
+            Write-Log "Total space for successful conversions remained the same." -foregroundColor $infoColor
         }
-        Write-Log "Converted size (% of original): $([Math]::Round(($totalConvertedSize / $totalOriginalSize) * 100, 2))%" -foregroundColor $infoColor
+        Write-Log "Average converted size as % of original (for successful conversions): $([Math]::Round(($totalConvertedSize / $totalOriginalSize) * 100, 2))%" -foregroundColor $infoColor
     }
-    Write-Log "Average time/file: $([Math]::Round($avgFileTime, 1)) seconds"
+    Write-Log "Average time/successful file conversion: $([Math]::Round($avgFileTime, 1)) seconds"
+    # To calculate files/hour and GB/hour, ensure TotalHours is not zero
     if ($totalTime.TotalHours -gt 0) {
-        Write-Log "Processing rate: $([Math]::Round($processedFiles / $totalTime.TotalHours, 2)) files/hour"
-        Write-Log "Processing speed: $([Math]::Round($totalOriginalSize / 1GB / $totalTime.TotalHours, 2)) GB/hour"
+        Write-Log "Processing rate (successful files): $([Math]::Round($successConversions.Count / $totalTime.TotalHours, 2)) files/hour"
+        Write-Log "Processing speed (original size for successful files): $([Math]::Round($totalOriginalSize / 1GB / $totalTime.TotalHours, 2)) GB/hour"
     }
     else {
-        Write-Log "Processing rate: N/A (Total time too short)"
-        Write-Log "Processing speed: N/A (Total time too short)"
+        Write-Log "Processing rate/speed: N/A (Total script runtime too short for meaningful rate calculation)"
     }
+}
+else {
+    Write-Log "No successful conversions to report size and speed statistics." -foregroundColor $warningColor
 }
 Write-Log "=======================================================`n" -foregroundColor $infoColor
 
-if ($failedConversions) {
+if ($failedConversions.Count -gt 0) {
     Write-Log "Failed files:" -foregroundColor $errorColor
     $failedConversions | ForEach-Object { Write-Log "- $_" -foregroundColor $errorColor }
     Write-Log "Check the 'failed' folder for original files and error logs." -foregroundColor $errorColor
