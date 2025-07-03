@@ -12,15 +12,28 @@ on:
 jobs:
   generate-docs:
     runs-on: windows-latest
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+      
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
 
     - name: Setup PowerShell
-      uses: actions/setup-powershell@v3
+      uses: actions/setup-powershell@v4
       with:
         pwsh-version: '7.3'
 
+    - name: Cache PowerShell modules
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~\AppData\Local\Microsoft\Windows\PowerShell
+          ~\Documents\PowerShell\Modules
+        key: ${{ runner.os }}-powershell-${{ hashFiles('**/*.ps1') }}
+        
     - name: Set Execution Policy
       run: Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope CurrentUser
 
@@ -32,7 +45,9 @@ jobs:
     - name: Generate documentation
       run: |
         # Create docs directory
-        if (-not (Test-Path ./docs)) { New-Item -Path ./docs -ItemType Directory -Force }
+        if (-not (Test-Path ./docs)) { 
+            New-Item -Path ./docs -ItemType Directory -Force 
+        }
         
         # Generate module docs
         $modules = Get-ChildItem -Path ./Modules -Recurse -Include *.psm1 -ErrorAction SilentlyContinue
@@ -75,6 +90,33 @@ jobs:
         "@
         
         Set-Content -Path ./docs/index.md -Value $indexContent
+
+    - name: Generate HTML documentation
+      run: |
+        # Convert index.md to HTML
+        $htmlContent = @"
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>HEVC Converter Documentation</title>
+            <meta charset="UTF-8">
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; max-width: 800px; margin: auto; padding: 20px; }
+                h1 { color: #2c3e50; }
+                h2 { border-bottom: 1px solid #eee; padding-bottom: 5px; }
+                ul { list-style-type: none; padding: 0; }
+                li { margin-bottom: 10px; }
+                a { color: #3498db; text-decoration: none; }
+                a:hover { text-decoration: underline; }
+                .timestamp { font-style: italic; color: #7f8c8d; }
+            </style>
+        </head>
+        <body>
+            $(Get-Content ./docs/index.md -Raw | ConvertFrom-Markdown | ForEach-Object { $_.Html })
+        </body>
+        </html>
+        "@
+        Set-Content -Path ./docs/index.html -Value $htmlContent
 
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v4
