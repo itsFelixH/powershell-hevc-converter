@@ -388,13 +388,12 @@ $encodingProfile = $null
 if ($Profile) {
     $encodingProfile = Get-EncodingProfile $Profile
     if ($encodingProfile) {
-        if ($encodingProfile.crf) { 
+        # Only apply profile settings if user didn't explicitly provide the parameter
+        if (-not $PSBoundParameters.ContainsKey('crf') -and $encodingProfile.crf) { 
             $crf = $encodingProfile.crf
-            Write-DebugInfo "Profile override: CRF = $crf"
         }
-        if ($encodingProfile.preset) { 
+        if (-not $PSBoundParameters.ContainsKey('preset') -and $encodingProfile.preset) { 
             $preset = $encodingProfile.preset
-            Write-DebugInfo "Profile override: Preset = $preset"
         }
     }
 }
