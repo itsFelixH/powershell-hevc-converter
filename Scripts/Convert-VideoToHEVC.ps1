@@ -4,10 +4,10 @@ Converts video files to HEVC (H.265) format using FFmpeg with advanced options, 
 
 .DESCRIPTION
 This script automates the conversion of various video formats (MKV, MP4, MOV, WMV, AVI, FLV, M4V)
-to HEVC (H.265) using the libx265 encoder. It combines the advanced features, and robust error handling of one script with the
-interactive batch processing capability of another.
+to HEVC (H.265) using the libx265 encoder. It supports preset profiles for different content types and robust error handling.
 
 Key features include:
+- Preset profiles for different content types (Animation, Film, ScreenCapture, etc.)
 - Customizable quality (CRF) and encoding preset.
 - Optional interactive batch processing to convert files in chunks.
 - Comprehensive error handling with detailed logging to a file and console.
@@ -16,6 +16,9 @@ Key features include:
 - Automatic detection and exclusion of already converted files.
 - Ensures FFmpeg and FFprobe are available in the system's PATH before execution.
 - Original files are moved to the output folder upon successful conversion, and failed conversions are moved to a 'failed' subfolder for troubleshooting.
+
+.PARAMETER Profile
+Specifies a predefined encoding profile to use for conversion
 
 .PARAMETER inputFolder
 Specifies the path to the folder containing video files to be converted.
@@ -48,6 +51,9 @@ and detailed entries in the log file.
 A switch parameter that, when present, writes all console output to a separate log file.
 
 .EXAMPLE
+.\Convert-VideoToHEVC.ps1 -Profile Animation
+
+.EXAMPLE
 .\Convert-VideoToHEVC.ps1 -inputFolder "C:\MyVideos" -outputFolder "C:\ConvertedVideos" -crf 20 -preset slow
 
 .EXAMPLE
@@ -76,6 +82,11 @@ The script logs significant actions and errors to 'yyyy-MM-dd_HH-mm-ss_conversio
 # Parameters
 [CmdletBinding(SupportsShouldProcess = $true)]
 param (
+    # predefined encoding profile
+    [Parameter(HelpMessage = "Use a predefined encoding profile")]
+    [ValidateSet("Animation", "Film", "ScreenCapture", "HighMotion", "LowLight", "ArchiveQuality", "MobileStream", "HDR-8K", "FilmRestoration", "SocialMedia")]
+    [string]$Profile,
+
     # input & output folders
     [Parameter(HelpMessage = "Path to the folder containing video files to be converted.")]
     [string]$inputFolder = (Get-Location).Path,
@@ -118,74 +129,55 @@ $logFilePath = Join-Path -Path $outputFolder -ChildPath "${logFileTimestamp}_con
 
 
 # HELPER FUNCTIONS
-function Test-DiskSpace {
-    param (
-        [string]$path,
-        [double]$requiredSpaceGB
-    )
-    try {
-        $drive = (Resolve-Path $path).Drive
-        $freeSpace = (Get-PSDrive $drive.Name).Free
-        $freeSpaceGB = [math]::Round($freeSpace / 1GB, 2)
-        
-        Write-DebugInfo "Free space on $($drive.Name): $freeSpaceGB GB"
-        return $freeSpaceGB -ge $requiredSpaceGB
-    }
-    catch {
-        Write-Log "Error checking disk space: $_" -foregroundColor $errorColor
-        return $false
-    }
-}
 
-function Get-FileHash {
-    param([string]$filePath)
+<#
+.SYNOPSIS
+Loads an encoding profile from JSON file.
+
+.DESCRIPTION
+Retrieves encoding settings from a predefined profile in the Preset-Profiles directory.
+
+.PARAMETER profileName
+Name of the profile to load (without .json extension).
+
+.OUTPUTS
+PSObject containing profile settings or $null if not found.
+#>
+function Get-EncodingProfile {
+    param([string]$profileName)
+    
+    $profilePath = Join-Path -Path $PSScriptRoot -ChildPath "Preset-Profiles\$profileName.json"
+    
+    if (-not (Test-Path $profilePath)) {
+        Write-Log "Profile '$profileName' not found! Using default settings." -foregroundColor $warningColor
+        return $null
+    }
+    
     try {
-        $hash = Get-FileHash -Path $filePath -Algorithm SHA256
-        return $hash.Hash
+        $profile = Get-Content $profilePath -Raw | ConvertFrom-Json
+        Write-Log "Loaded profile: $($profile.name) - $($profile.description)" -foregroundColor $infoColor
+        return $profile
     }
     catch {
-        Write-Log "Error calculating file hash: $_" -foregroundColor $errorColor
+        Write-Log "Error loading profile: $($_.Exception.Message)" -foregroundColor $errorColor
         return $null
     }
 }
 
-function Test-FileIntegrity {
-    param(
-        [string]$sourcePath,
-        [string]$destinationPath
-    )
-    try {
-        $sourceHash = Get-FileHash $sourcePath
-        $destHash = Get-FileHash $destinationPath
-        
-        if ($null -eq $sourceHash -or $null -eq $destHash) {
-            return $false
-        }
-        
-        return $sourceHash -eq $destHash
-    }
-    catch {
-        Write-Log "Error verifying file integrity: $_" -foregroundColor $errorColor
-        return $false
-    }
-}
 
-function Remove-PartialFiles {
-    param([string]$path)
-    try {
-        if (Test-Path $path) {
-            Remove-Item $path -Force
-            Write-Log "Removed partial file: $path" -foregroundColor $warningColor
-            return $true
-        }
-    }
-    catch {
-        Write-Log "Error removing partial file: $_" -foregroundColor $errorColor
-        return $false
-    }
-}
+<#
+.SYNOPSIS
+Writes formatted log messages to console and optionally to a file.
 
-# Define a function for logging to console and file
+.DESCRIPTION
+Outputs messages with timestamp and color coding. Can write to both console and log file.
+
+.PARAMETER message
+The message to log.
+
+.PARAMETER foregroundColor
+Console text color (default: White).
+#>
 function Write-Log {
     param (
         [Parameter(Mandatory = $true)]
@@ -202,7 +194,17 @@ function Write-Log {
     }
 }
 
-# Debugging helper function
+
+<#
+.SYNOPSIS
+Writes debug information when DebugMode is enabled.
+
+.DESCRIPTION
+Outputs debug messages with detailed timestamp. Only active when -DebugMode switch is used.
+
+.PARAMETER message
+The debug message to log.
+#>
 function Write-DebugInfo {
     param([string]$message)
     if ($DebugMode) {
@@ -210,6 +212,20 @@ function Write-DebugInfo {
     }
 }
 
+
+<#
+.SYNOPSIS
+Formats file sizes into human-readable strings.
+
+.DESCRIPTION
+Converts byte counts to appropriate units (KB, MB, GB, TB).
+
+.PARAMETER size
+File size in bytes.
+
+.OUTPUTS
+Formatted file size string.
+#>
 function Format-FileSize {
     param([long]$size)
     switch ($size) {
@@ -221,6 +237,17 @@ function Format-FileSize {
     }
 }
 
+
+<#
+.SYNOPSIS
+Verifies FFmpeg and FFprobe availability and HEVC support.
+
+.DESCRIPTION
+Checks system PATH for FFmpeg binaries and verifies libx265 encoder is available.
+
+.OUTPUTS
+Boolean indicating if requirements are met.
+#>
 function Test-FFmpeg {
     try {
         # Test FFmpeg
@@ -265,59 +292,20 @@ function Test-FFmpeg {
     }
 }
 
-function Test-MediaFile {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$filePath
-    )
 
-    Write-DebugInfo "Testing media file: $filePath"
+<#
+.SYNOPSIS
+Retrieves media information using FFprobe.
 
-    if (-not (Test-Path $filePath -PathType Leaf)) {
-        Write-Log "File not found: $filePath" -foregroundColor $errorColor
-        return $false
-    }
+.DESCRIPTION
+Extracts video stream metadata from a media file using FFprobe.
 
-    try {
-        # Check if file is accessible and not locked
-        $fileStream = [System.IO.File]::OpenRead($filePath)
-        $fileStream.Close()
-        $fileStream.Dispose()
+.PARAMETER filePath
+Path to the media file.
 
-        # Check file size
-        $fileSize = (Get-Item $filePath).Length
-        if ($fileSize -eq 0) {
-            Write-Log "File is empty: $filePath" -foregroundColor $errorColor
-            return $false
-        }
-
-        # Check if file is already HEVC encoded
-        $mediaInfo = Get-MediaInfo -filePath $filePath
-        if ($null -eq $mediaInfo) {
-            Write-Log "Could not get media information for: $filePath" -foregroundColor $errorColor
-            return $false
-        }
-
-        if ($mediaInfo.codec_name -eq 'hevc') {
-            Write-Log "File is already HEVC encoded: $filePath" -foregroundColor $warningColor
-            return $false
-        }
-
-        # Validate video stream
-        if ($null -eq $mediaInfo.width -or $null -eq $mediaInfo.height) {
-            Write-Log "Invalid video dimensions in: $filePath" -foregroundColor $errorColor
-            return $false
-        }
-
-        Write-DebugInfo "Media file validation passed: $filePath"
-        return $true
-    }
-    catch {
-        Write-Log "Error validating media file: $_" -foregroundColor $errorColor
-        return $false
-    }
-}
-
+.OUTPUTS
+PSObject containing media information or $null on failure.
+#>
 function Get-MediaInfo {
     param([string]$filePath)
 
@@ -371,7 +359,7 @@ function Get-MediaInfo {
 }
 
 
-# MAIN FUNCTION
+# MAIN SCRIPT EXECUTION
 
 # Validate parameters
 Write-DebugInfo "Script startup"
@@ -393,6 +381,22 @@ if ($LogToFile) {
 # Validate FFmpeg
 if (-not (Test-FFmpeg)) {
     exit 1
+}
+
+# Load encoding profile if specified
+$encodingProfile = $null
+if ($Profile) {
+    $encodingProfile = Get-EncodingProfile $Profile
+    if ($encodingProfile) {
+        if ($encodingProfile.crf) { 
+            $crf = $encodingProfile.crf
+            Write-DebugInfo "Profile override: CRF = $crf"
+        }
+        if ($encodingProfile.preset) { 
+            $preset = $encodingProfile.preset
+            Write-DebugInfo "Profile override: Preset = $preset"
+        }
+    }
 }
 
 # Validate and create folders
@@ -490,6 +494,11 @@ if ($doBatching) {
 else {
     Write-Log "`nStarting HEVC conversion of $totalFiles files." -foregroundColor $infoColor
 }
+
+# Show profile info if used
+if ($encodingProfile) {
+    Write-Log "Using profile: $($encodingProfile.name) - $($encodingProfile.description)" -foregroundColor $infoColor
+}
 Write-Log "Quality settings: CRF $crf, Preset $preset." -foregroundColor $infoColor
 
 # Main loop for processing files (or batches)
@@ -554,7 +563,17 @@ for ($batchNumber = 1; ($processedFiles -lt $totalFiles) -and -not $exitScript; 
                     "-map_chapters", "-1", # Do not copy chapters
                     "-c:v", "libx265",
                     "-crf", "$crf",
-                    "-preset", $preset,
+                    "-preset", $preset
+                )
+
+                # Add profile-specific parameters
+                if ($encodingProfile -and $encodingProfile.extra_params) {
+                    Write-DebugInfo "Adding profile parameters: $($encodingProfile.extra_params -join ' ')"
+                    $ffmpegParams += $encodingProfile.extra_params
+                }
+
+                # Add standard parameters
+                $ffmpegParams += @(
                     "-c:a", "copy",
                     "-c:s", "copy",
                     "-x265-params", "log-level=error",
