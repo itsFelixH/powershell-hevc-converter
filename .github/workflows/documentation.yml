@@ -1,0 +1,78 @@
+name: Auto-Documentation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Scripts/**'
+      - 'Modules/**'
+  pull_request:
+    branches: [main]
+
+jobs:
+  generate-docs:
+    runs-on: windows-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Setup PowerShell
+      uses: actions/setup-powershell@v2
+      with:
+        pwsh-version: '7.3'
+
+    - name: Install dependencies
+      run: |
+        Install-Module -Name platyPS -Force -Scope CurrentUser
+        Install-Module -Name PSWriteHTML -Force -Scope CurrentUser
+
+    - name: Generate documentation
+      run: |
+        # Create docs directory
+        New-Item -Path ./docs -ItemType Directory -Force
+        
+        # Generate module docs
+        $modules = Get-ChildItem -Path ./Modules -Recurse -Include *.psm1
+        foreach ($module in $modules) {
+            Import-Module $module.FullName -Force
+            $moduleName = $module.BaseName
+            New-MarkdownHelp -Module $moduleName -OutputFolder "./docs/$moduleName" -Force
+        }
+        
+        # Generate script docs
+        $scripts = Get-ChildItem -Path ./Scripts -Recurse -Include *.ps1
+        foreach ($script in $scripts) {
+            $scriptName = $script.BaseName
+            New-MarkdownHelp -Command $script.FullName -OutputFolder "./docs/Scripts" -Force
+        }
+        
+        # Create index file
+        $indexContent = @"
+        # PowerShell HEVC Converter Documentation
+        
+        ## Modules
+        $(
+            Get-ChildItem ./docs | Where-Object { $_.PSIsContainer } | 
+            ForEach-Object { "- [$($_.Name)](./$($_.Name))" }
+        )
+        
+        ## Scripts
+        $(
+            Get-ChildItem ./docs/Scripts -File | 
+            ForEach-Object { "- [$($_.BaseName)](./Scripts/$($_.Name))" }
+        )
+        
+        *Updated: $(Get-Date -Format "yyyy-MM-dd HH:mm")*
+        "@
+        
+        Set-Content -Path ./docs/index.md -Value $indexContent
+
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./docs
+        keep_files: false
+        force_orphan: true
