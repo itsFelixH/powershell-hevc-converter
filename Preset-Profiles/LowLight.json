@@ -1,0 +1,16 @@
+{
+  "name": "LowLight",
+  "description": "Optimized for noisy footage from low-light recordings",
+  "crf": 19,
+  "preset": "slow",
+  "tune": "grain",
+  "extra_params": [
+    "--aq-mode 3",
+    "--psy-rd 0.9",
+    "--deblock -1:-1",
+    "--nr-intra 300",
+    "--nr-inter 400"
+  ],
+  "recommended_resolutions": ["1080p", "4K"],
+  "bitrate_savings": "35-55%"
+}

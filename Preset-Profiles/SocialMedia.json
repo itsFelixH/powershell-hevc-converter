@@ -1,0 +1,15 @@
+{
+  "name": "SocialMedia",
+  "description": "Balanced quality/size for social platforms",
+  "crf": 23,
+  "preset": "fast",
+  "tune": "none",
+  "extra_params": [
+    "--no-info",
+    "--no-hdr",
+    "--uhd-bd 0",
+    "--no-high-tier"
+  ],
+  "recommended_resolutions": ["720p", "1080p"],
+  "bitrate_savings": "65-80%"
+}

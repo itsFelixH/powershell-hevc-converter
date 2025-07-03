@@ -1,0 +1,16 @@
+{
+  "name": "ArchiveQuality",
+  "description": "Near-transparent quality for long-term archiving",
+  "crf": 16,
+  "preset": "veryslow",
+  "tune": "none",
+  "extra_params": [
+    "--aq-mode 4",
+    "--psy-rd 2.0",
+    "--rdoq-level 2",
+    "--ctu 32",
+    "--limit-tu 4"
+  ],
+  "recommended_resolutions": ["1080p", "4K", "8K"],
+  "bitrate_savings": "25-45%"
+}

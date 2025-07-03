@@ -1,0 +1,15 @@
+{
+  "name": "HighMotion",
+  "description": "For sports, action scenes, and high-motion content",
+  "crf": 21,
+  "preset": "fast",
+  "tune": "none",
+  "extra_params": [
+    "--bframes 8",
+    "--ref 5",
+    "--rc-lookahead 40",
+    "--no-sao"
+  ],
+  "recommended_resolutions": ["720p", "1080p", "4K"],
+  "bitrate_savings": "45-65%"
+}

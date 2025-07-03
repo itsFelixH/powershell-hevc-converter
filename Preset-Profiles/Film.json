@@ -1,0 +1,14 @@
+{
+  "name": "Film",
+  "description": "For high-quality movie encodes with grain preservation",
+  "crf": 20,
+  "preset": "medium",
+  "tune": "grain",
+  "extra_params": [
+    "--aq-mode 4",
+    "--psy-rd 0.7",
+    "--deblock -2:-2"
+  ],
+  "recommended_resolutions": ["1080p", "4K"],
+  "bitrate_savings": "50-70%"
+}

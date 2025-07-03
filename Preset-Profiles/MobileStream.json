@@ -1,0 +1,15 @@
+{
+  "name": "MobileStream",
+  "description": "Optimized for mobile devices and limited bandwidth",
+  "crf": 24,
+  "preset": "veryfast",
+  "tune": "none",
+  "extra_params": [
+    "--max-merge 3",
+    "--no-strong-intra-smoothing",
+    "--limit-modes",
+    "--early-skip"
+  ],
+  "recommended_resolutions": ["480p", "720p"],
+  "bitrate_savings": "70-85%"
+}

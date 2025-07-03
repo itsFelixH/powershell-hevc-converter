@@ -1,0 +1,15 @@
+{
+  "name": "ScreenCapture",
+  "description": "Optimized for text clarity in screen recordings",
+  "crf": 22,
+  "preset": "faster",
+  "tune": "zerolatency",
+  "extra_params": [
+    "--aq-mode 1",
+    "--no-open-gop",
+    "--rect 0",
+    "--amp 0"
+  ],
+  "recommended_resolutions": ["720p", "1080p"],
+  "bitrate_savings": "60-80%"
+}

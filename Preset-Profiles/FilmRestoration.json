@@ -1,0 +1,16 @@
+{
+  "name": "FilmRestoration",
+  "description": "For digitizing and restoring old film sources",
+  "crf": 17,
+  "preset": "veryslow",
+  "tune": "grain",
+  "extra_params": [
+    "--aq-mode 4",
+    "--deblock -3:-3",
+    "--nr 500",
+    "--preset veryslow",
+    "--ctu 64"
+  ],
+  "recommended_resolutions": ["480p", "576p", "1080p"],
+  "bitrate_savings": "30-50%"
+}

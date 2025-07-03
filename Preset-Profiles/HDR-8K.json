@@ -1,0 +1,18 @@
+{
+  "name": "HDR-8K",
+  "description": "For high dynamic range 8K content",
+  "crf": 20,
+  "preset": "slower",
+  "tune": "none",
+  "extra_params": [
+    "--hdr10",
+    "--hdr10-opt",
+    "--repeat-headers",
+    "--aud",
+    "--limit-tu 4",
+    "--rdpenalty 2"
+  ],
+  "recommended_resolutions": ["4K", "8K"],
+  "color_space": "BT.2020",
+  "bit_depth": 10
+}
