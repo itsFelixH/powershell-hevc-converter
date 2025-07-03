@@ -77,16 +77,22 @@ The script logs significant actions and errors to 'yyyy-MM-dd_HH-mm-ss_conversio
 [CmdletBinding(SupportsShouldProcess = $true)]
 param (
     # input & output folders
+    [Parameter(HelpMessage = "Path to the folder containing video files to be converted.")]
     [string]$inputFolder = (Get-Location).Path,
+
+    [Parameter(HelpMessage = "Path where converted HEVC video files will be saved.")]
     [string]$outputFolder = (Join-Path -Path (Get-Location).Path -ChildPath "converted"),
 
     # Advanced encoding parameters
     [Parameter(HelpMessage = "Number of files to process in each batch. Omit for no batching.")]
+    [ValidateRange(0, 100)]
     [int]$batchSize = 0,
 
+    [Parameter(HelpMessage = "Constant Rate Factor (CRF) value for libx265 encoding (0-51). Lower = higher quality.")]
     [ValidateRange(0, 51)]
-    [int]$crf = 23,
+    [int]$crf = 28,
 
+    [Parameter(HelpMessage = "Encoding preset for libx265. Controls speed vs. compression efficiency.")]
     [ValidateSet("ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow", "placebo")]
     [string]$preset = "medium",
 
@@ -109,6 +115,75 @@ $debugColor = "Magenta"
 # Log file path
 $logFileTimestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
 $logFilePath = Join-Path -Path $outputFolder -ChildPath "${logFileTimestamp}_conversion.log"
+
+
+# HELPER FUNCTIONS
+function Test-DiskSpace {
+    param (
+        [string]$path,
+        [double]$requiredSpaceGB
+    )
+    try {
+        $drive = (Resolve-Path $path).Drive
+        $freeSpace = (Get-PSDrive $drive.Name).Free
+        $freeSpaceGB = [math]::Round($freeSpace / 1GB, 2)
+        
+        Write-DebugInfo "Free space on $($drive.Name): $freeSpaceGB GB"
+        return $freeSpaceGB -ge $requiredSpaceGB
+    }
+    catch {
+        Write-Log "Error checking disk space: $_" -foregroundColor $errorColor
+        return $false
+    }
+}
+
+function Get-FileHash {
+    param([string]$filePath)
+    try {
+        $hash = Get-FileHash -Path $filePath -Algorithm SHA256
+        return $hash.Hash
+    }
+    catch {
+        Write-Log "Error calculating file hash: $_" -foregroundColor $errorColor
+        return $null
+    }
+}
+
+function Test-FileIntegrity {
+    param(
+        [string]$sourcePath,
+        [string]$destinationPath
+    )
+    try {
+        $sourceHash = Get-FileHash $sourcePath
+        $destHash = Get-FileHash $destinationPath
+        
+        if ($null -eq $sourceHash -or $null -eq $destHash) {
+            return $false
+        }
+        
+        return $sourceHash -eq $destHash
+    }
+    catch {
+        Write-Log "Error verifying file integrity: $_" -foregroundColor $errorColor
+        return $false
+    }
+}
+
+function Remove-PartialFiles {
+    param([string]$path)
+    try {
+        if (Test-Path $path) {
+            Remove-Item $path -Force
+            Write-Log "Removed partial file: $path" -foregroundColor $warningColor
+            return $true
+        }
+    }
+    catch {
+        Write-Log "Error removing partial file: $_" -foregroundColor $errorColor
+        return $false
+    }
+}
 
 # Define a function for logging to console and file
 function Write-Log {
@@ -148,26 +223,97 @@ function Format-FileSize {
 
 function Test-FFmpeg {
     try {
+        # Test FFmpeg
         $ffmpegFullOutput = ffmpeg -version 2>&1 | Out-String
+        if (-not $?) {
+            Write-Log "FFmpeg test failed!" -foregroundColor $errorColor
+            return $false
+        }
         $ffmpegVersion = ($ffmpegFullOutput | Select-String -Pattern 'ffmpeg version').Line.Split()[2]
 
+        # Test FFprobe
         $ffprobeFullOutput = ffprobe -version 2>&1 | Out-String
+        if (-not $?) {
+            Write-Log "FFprobe test failed!" -foregroundColor $errorColor
+            return $false
+        }
         $ffprobeVersion = ($ffprobeFullOutput | Select-String -Pattern 'ffprobe version').Line.Split()[2]
 
-        # Check if libx265 encoder is available
-        $x265EncoderInfo = ffmpeg -encoders | Select-String -Pattern 'libx265'
+        # Check for libx265 encoder
+        $x265EncoderInfo = ffmpeg -encoders 2>&1 | Select-String -Pattern 'libx265'
         if (-not $x265EncoderInfo) {
             Write-Log "FFmpeg found, but 'libx265' encoder is not available. Please use a build with HEVC support." -foregroundColor $errorColor
             return $false
         }
 
+        # Check for hardware acceleration support
+        $hwaccelInfo = ffmpeg -hwaccels 2>&1
+        if ($hwaccelInfo -match 'nvenc|qsv|amf') {
+            Write-Log "Hardware acceleration is available: $($matches[0])" -foregroundColor $successColor
+        }
+
         Write-Log "FFmpeg version: $ffmpegVersion" -foregroundColor $infoColor
         Write-Log "FFprobe version: $ffprobeVersion" -foregroundColor $infoColor
+        Write-Log "HEVC encoder: Available" -foregroundColor $successColor
 
         return $true
     }
     catch {
-        Write-Log "FFmpeg/FFprobe not found! Please ensure they are in your system's PATH." -foregroundColor $errorColor
+        Write-Log "Error testing FFmpeg/FFprobe: $_" -foregroundColor $errorColor
+        Write-Log "Please ensure FFmpeg and FFprobe are installed and in your system's PATH." -foregroundColor $errorColor
+        return $false
+    }
+}
+
+function Test-MediaFile {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$filePath
+    )
+
+    Write-DebugInfo "Testing media file: $filePath"
+
+    if (-not (Test-Path $filePath -PathType Leaf)) {
+        Write-Log "File not found: $filePath" -foregroundColor $errorColor
+        return $false
+    }
+
+    try {
+        # Check if file is accessible and not locked
+        $fileStream = [System.IO.File]::OpenRead($filePath)
+        $fileStream.Close()
+        $fileStream.Dispose()
+
+        # Check file size
+        $fileSize = (Get-Item $filePath).Length
+        if ($fileSize -eq 0) {
+            Write-Log "File is empty: $filePath" -foregroundColor $errorColor
+            return $false
+        }
+
+        # Check if file is already HEVC encoded
+        $mediaInfo = Get-MediaInfo -filePath $filePath
+        if ($null -eq $mediaInfo) {
+            Write-Log "Could not get media information for: $filePath" -foregroundColor $errorColor
+            return $false
+        }
+
+        if ($mediaInfo.codec_name -eq 'hevc') {
+            Write-Log "File is already HEVC encoded: $filePath" -foregroundColor $warningColor
+            return $false
+        }
+
+        # Validate video stream
+        if ($null -eq $mediaInfo.width -or $null -eq $mediaInfo.height) {
+            Write-Log "Invalid video dimensions in: $filePath" -foregroundColor $errorColor
+            return $false
+        }
+
+        Write-DebugInfo "Media file validation passed: $filePath"
+        return $true
+    }
+    catch {
+        Write-Log "Error validating media file: $_" -foregroundColor $errorColor
         return $false
     }
 }
@@ -225,6 +371,8 @@ function Get-MediaInfo {
 }
 
 
+# MAIN FUNCTION
+
 # Validate parameters
 Write-DebugInfo "Script startup"
 Write-DebugInfo "Input folder: $inputFolder"
@@ -236,8 +384,7 @@ Write-DebugInfo "Debug mode: $DebugMode"
 Write-DebugInfo "Log to file: $LogToFile"
 Write-DebugInfo "CRF: $crf, Preset: $preset"
 
-
-# Initialize log file
+# Initialize logging
 if ($LogToFile) {
     Write-Host "Creating log file: $logFilePath" -ForegroundColor Gray
     Add-Content -Path $logFilePath -Value "Conversion log started at $(Get-Date)`n"
@@ -250,24 +397,45 @@ if (-not (Test-FFmpeg)) {
 
 # Validate and create folders
 try {
+    Write-DebugInfo "Validating folder structure..."
+
+    # Create output folder if needed
     if (-not (Test-Path -Path $outputFolder -PathType Container)) {
-        Write-Log "Creating output folder '$outputFolder'." -foregroundColor $infoColor
+        Write-Log "Creating output folder: $outputFolder" -foregroundColor $infoColor
         $null = New-Item -ItemType Directory -Path $outputFolder -Force
     }
+
+    # Create failed folder if needed
     $failedFolder = Join-Path -Path $inputFolder -ChildPath "failed"
     if (-not (Test-Path -Path $failedFolder -PathType Container)) {
-        Write-Log "Creating folder '$failedFolder' for failed conversions." -foregroundColor $infoColor
+        Write-Log "Creating failed items folder: $failedFolder" -foregroundColor $infoColor
         $null = New-Item -ItemType Directory -Path $failedFolder -Force
+    }
+
+    # Verify write permissions
+    $testFile = Join-Path -Path $outputFolder -ChildPath "write_test"
+    try {
+        $null = New-Item -ItemType File -Path $testFile -Force -ErrorAction Stop
+        Remove-Item -Path $testFile -Force -ErrorAction Stop
+    }
+    catch {
+        throw "No write permission in output folder: $outputFolder"
     }
 }
 catch {
-    Write-Log "Error validating or creating input/output folders. Details: $_" -foregroundColor $errorColor
+    Write-Log "Failed to initialize folder structure. Details: $_" -foregroundColor $errorColor
     exit 1
 }
 
-# Switch to input folder
-Set-Location $inputFolder
-Write-DebugInfo "Working directory set to: $(Get-Location)"
+# Set working directory
+try {
+    Set-Location -Path $inputFolder -ErrorAction Stop
+    Write-DebugInfo "Working directory set to: $(Get-Location)"
+}
+catch {
+    Write-Log "Failed to access input folder. Details: $_" -foregroundColor $errorColor
+    exit 1
+}
 
 # Get video files to process
 try {
@@ -292,7 +460,7 @@ try {
     }
 }
 catch {
-    Write-Log "Error accessing input folder: $inputFolder. Details: $_" -foregroundColor $errorColor
+    Write-Log "Failed to process input folder: $inputFolder. Details: $_" -foregroundColor $errorColor
     Set-Location $PSScriptRoot
     exit 1
 }
@@ -313,6 +481,7 @@ $processedFiles = 0
 $exitScript = $false
 $startTime = Get-Date
 
+# Initialize batch processing
 $doBatching = $batchSize -gt 0
 if ($doBatching) {
     $batches = [Math]::Ceiling($totalFiles / $batchSize)
@@ -321,7 +490,7 @@ if ($doBatching) {
 else {
     Write-Log "`nStarting HEVC conversion of $totalFiles files." -foregroundColor $infoColor
 }
-Write-Log "Using quality settings: CRF $crf, Preset $preset." -foregroundColor $infoColor
+Write-Log "Quality settings: CRF $crf, Preset $preset." -foregroundColor $infoColor
 
 # Main loop for processing files (or batches)
 for ($batchNumber = 1; ($processedFiles -lt $totalFiles) -and -not $exitScript; $batchNumber++) {
@@ -499,41 +668,39 @@ for ($batchNumber = 1; ($processedFiles -lt $totalFiles) -and -not $exitScript; 
 }
 
 
-# Generate summary
+# Generate summary report
 $totalTime = (Get-Date).Subtract($startTime)
-$totalSavedSpaceAmount = [Math]::Abs($totalOriginalSize - $totalConvertedSize)
-$avgFileTime = if ($processedFiles -gt 0) { $totalTime.TotalSeconds / $processedFiles } else { 0 } 
 
 Write-Log "`n`n=================== CONVERSION SUMMARY ===================" -foregroundColor $infoColor
-Write-Log "Total files found: $totalFiles" -foregroundColor White
-Write-Log "Files processed (attempted conversions): $processedFiles" -foregroundColor White
+Write-Log "Total input files: $totalFiles" -foregroundColor White
+Write-Log "Total files processed: $processedFiles" -foregroundColor White
 Write-Log "Successful conversions: $($successConversions.Count)" -foregroundColor $successColor
 Write-Log "Failed conversions: $($failedConversions.Count)" -foregroundColor $errorColor
-Write-Log "Total script runtime: $($totalTime.ToString('hh\:mm\:ss'))" -foregroundColor White
+Write-Log "Total runtime: $($totalTime.ToString('hh\:mm\:ss'))" -foregroundColor White
 
 if ($successConversions.Count -gt 0) { 
-    Write-Log "Original size of successfully converted files: $(Format-FileSize $totalOriginalSize)" -foregroundColor White
-    Write-Log "Converted size of successfully converted files: $(Format-FileSize $totalConvertedSize)" -foregroundColor White
-    if ($totalOriginalSize -gt 0) {
-        if ($totalConvertedSize -lt $totalOriginalSize) {
-            Write-Log "Total space saved for successful conversions: $(Format-FileSize $totalSavedSpaceAmount)" -foregroundColor $successColor
-        }
-        elseif ($totalConvertedSize -gt $totalOriginalSize) {
-            Write-Log "Total space increased for successful conversions: $(Format-FileSize $totalSavedSpaceAmount)" -foregroundColor $warningColor
-        }
-        else {
-            Write-Log "Total space for successful conversions remained the same." -foregroundColor $infoColor
-        }
-        Write-Log "Average converted size as % of original (for successful conversions): $([Math]::Round(($totalConvertedSize / $totalOriginalSize) * 100, 2))%" -foregroundColor $infoColor
-    }
-    Write-Log "Average time/successful file conversion: $([Math]::Round($avgFileTime, 1)) seconds"
-    # To calculate files/hour and GB/hour, ensure TotalHours is not zero
-    if ($totalTime.TotalHours -gt 0) {
-        Write-Log "Processing rate (successful files): $([Math]::Round($successConversions.Count / $totalTime.TotalHours, 2)) files/hour"
-        Write-Log "Processing speed (original size for successful files): $([Math]::Round($totalOriginalSize / 1GB / $totalTime.TotalHours, 2)) GB/hour"
+    $compressionRatio = $([Math]::Round(($totalConvertedSize / $totalOriginalSize) * 100, 2))
+    $spaceSaved = [Math]::Abs($totalOriginalSize - $totalConvertedSize)
+    $avgFileTime = if ($processedFiles -gt 0) { $totalTime.TotalSeconds / $processedFiles } else { 0 } 
+
+    Write-Log "Original size: $(Format-FileSize $totalOriginalSize)" -foregroundColor White
+    Write-Log "Converted size: $(Format-FileSize $totalConvertedSize)" -foregroundColor White
+    Write-Log "Overall compression ratio: $compressionRatio%" -foregroundColor $infoColor
+
+    if ($spaceSaved -ge 0) {
+        Write-Log "Total space saved: $(Format-FileSize $spaceSaved)" -foregroundColor $successColor
     }
     else {
-        Write-Log "Processing rate/speed: N/A (Total script runtime too short for meaningful rate calculation)"
+        Write-Log "Total space increased: $(Format-FileSize $spaceSaved)" -foregroundColor $warningColor
+    }
+
+    Write-Log "Average time per conversion: $([Math]::Round($avgFileTime, 1)) seconds"
+    # To calculate files/hour and GB/hour, ensure TotalHours is not zero
+    if ($totalTime.TotalHours -gt 0) {
+        $filesPerHour = [Math]::Round($successConversions.Count / $totalTime.TotalHours, 2)
+        $gbPerHour = [Math]::Round($totalOriginalSize / 1GB / $totalTime.TotalHours, 2)
+        Write-Log "Processing rate: $filesPerHour files/hour"
+        Write-Log "Processing speed: $gbPerHour GB/hour"
     }
 }
 else {
