@@ -9,6 +9,8 @@ on:
 jobs:
   build-and-deploy-docs:
     runs-on: windows-latest # Use a Windows runner for PowerShell
+    permissions:
+      contents: write # Grant write permission to the GITHUB_TOKEN for pushing content
 
     steps:
       - name: Checkout repository
