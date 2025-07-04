@@ -14,18 +14,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up PowerShell
-        uses: actions/setup-powershell@v2
-        with:
-          pwsh-version: '7.x' # Use PowerShell Core 7.x
-
       - name: Set Execution Policy
+        shell: pwsh
         run: Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope CurrentUser
 
       - name: Install platyPS module
+        shell: pwsh
         run: Install-Module -Name platyPS -Force -Scope CurrentUser -AllowClobber
 
       - name: Create docs directory
+        shell: pwsh
         run: |
           if (-not (Test-Path ./docs)) {
               New-Item -Path ./docs -ItemType Directory -Force
@@ -33,6 +31,7 @@ jobs:
         shell: pwsh
 
       - name: Generate Script Documentation (Custom for .ps1 files)
+        shell: pwsh
         run: |
           # Function to extract comment-based help and format it as basic Markdown
           function Convert-CommentHelpToMarkdown {
