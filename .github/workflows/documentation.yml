@@ -55,8 +55,16 @@ jobs:
         # Generate script docs
         $scripts = Get-ChildItem -Path ./Scripts -Recurse -Include *.ps1 -ErrorAction SilentlyContinue
         foreach ($script in $scripts) {
-            $scriptName = $script.BaseName
-            New-MarkdownHelp -Path $script.FullName -OutputFolder "./docs/Scripts" -Force
+            $scriptName = $script.BaseName # Use BaseName for the file name without extension
+            # Check if it's the main script to put it directly in 'docs' if desired
+            $outputFolderForScript = "./docs/Scripts"
+            if ($script.Name -eq "Convert-VideoToHEVC.ps1") {
+                # This puts Convert-VideoToHEVC.md directly in ./docs/
+                $outputFolderForScript = "./docs" 
+            }
+
+            Write-Host "Generating help for script: $($script.Name)" # Debugging output
+            New-MarkdownHelp -Script $script.FullName -OutputFolder $outputFolderForScript -Force
         }
         
         # Create index file
