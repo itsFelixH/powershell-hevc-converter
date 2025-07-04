@@ -1,0 +1,40 @@
+# Compiled PowerShell binaries/modules
+*.dll
+*.exe
+*.pdb
+*.psd1
+
+# Temporary files and directories
+*.tmp
+*.log
+*.csv                 # Output CSV files
+*.mkv                 # Temporary video files
+*.mp4                 # Temporary video files
+*.mov                 # Temporary video files
+*.avi                 # Temporary video files
+*.png                 # Temporary image files
+temp/                 # A common directory for temporary files
+tmp/                  # Another common directory for temporary files
+
+# Output directories
+converted/            # Output directory for converted videos
+failed/               # Output directory for failed conversions
+
+# IDE-specific files
+.vscode/              # VS Code workspace settings and extensions
+*.ps1xml              # PowerShell format files
+*.psd1                # PowerShell module manifest files (if generated)
+*.psrc                # PowerShell console host settings
+
+# OS-specific temporary files
+.DS_Store             # macOS thumbnail cache
+Thumbs.db             # Windows thumbnail cache
+ehthumbs.db
+ehthumbs_vista.db
+*.bak                 # Backup files
+*.swp                 # Vim swap files
+*~                    # Emacs backup files
+
+# PowerShell-specific caches/run data
+.PSReadLine/            # PSReadLine history and cache
+$PSScriptRoot/.cache/   # Example for script-specific cache folders
