@@ -21,11 +21,6 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Setup PowerShell
-      uses: actions/setup-powershell@v4
-      with:
-        pwsh-version: '7.3'
-
     - name: Cache PowerShell modules
       uses: actions/cache@v3
       with:
