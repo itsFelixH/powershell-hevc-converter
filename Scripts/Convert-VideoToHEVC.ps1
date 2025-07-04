@@ -162,16 +162,16 @@ function Get-EncodingProfile {
     try {
         $profileContent = Get-Content $profilePath -Raw -ErrorAction Stop
         $profile = $profileContent | ConvertFrom-Json -ErrorAction Stop
-        Write-Log "Successfully loaded profile: $($profile.name) - $($profile.description)" -foregroundColor $script:infoColor
+        Write-Log "Successfully loaded profile: $($profile.name) - $($profile.description)" -foregroundColor $infoColor
         return $profile
     }
     catch [System.Management.Automation.JsonException] { # Catch specific JSON parsing errors
-        Write-Log "Error parsing JSON for profile '$ProfileName': $($_.Exception.Message)" -foregroundColor $script:errorColor
+        Write-Log "Error parsing JSON for profile '$ProfileName': $($_.Exception.Message)" -foregroundColor $errorColor
         Write-DebugInfo "Raw profile content that failed to parse: `n$profileContent"
         return $null
     }
     catch {
-        Write-Log "An unexpected error occurred while loading profile '$ProfileName': $($_.Exception.Message)" -foregroundColor $script:errorColor
+        Write-Log "An unexpected error occurred while loading profile '$ProfileName': $($_.Exception.Message)" -foregroundColor $errorColor
         return $null
     }
 }
@@ -244,94 +244,135 @@ function Write-DebugInfo {
 
 <#
 .SYNOPSIS
-Formats file sizes into human-readable strings.
+Formats a given file size in bytes into a human-readable string.
 
 .DESCRIPTION
-Converts byte counts to appropriate units (KB, MB, GB, TB).
+Converts a byte count into a more understandable format, displaying it in
+Terabytes (TB), Gigabytes (GB), Megabytes (MB), Kilobytes (KB), or bytes,
+whichever is most appropriate.
 
-.PARAMETER size
-File size in bytes.
+.PARAMETER Size
+The file size value, specified in bytes. This parameter expects a long integer.
 
-.OUTPUTS
-Formatted file size string.
+.RETURNS
+[string] A formatted string representing the file size (e.g., "1.23 GB").
+
+.EXAMPLE
+Format-FileSize -Size 1024
+# Output: 1.00 KB
+
+.EXAMPLE
+Format-FileSize -Size 1073741824
+# Output: 1.00 GB
 #>
 function Format-FileSize {
-    param([long]$size)
-    switch ($size) {
-        { $_ -ge 1TB } { "{0:N2} TB" -f ($_ / 1TB); break }
-        { $_ -ge 1GB } { "{0:N2} GB" -f ($_ / 1GB); break }
-        { $_ -ge 1MB } { "{0:N2} MB" -f ($_ / 1MB); break }
-        { $_ -ge 1KB } { "{0:N2} KB" -f ($_ / 1KB); break }
-        default { "$_ bytes" }
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        [long]$Size
+    )
+    process {
+        switch ($Size) {
+            { $_ -ge 1TB } { "{0:N2} TB" -f ($_ / 1TB); break }
+            { $_ -ge 1GB } { "{0:N2} GB" -f ($_ / 1GB); break }
+            { $_ -ge 1MB } { "{0:N2} MB" -f ($_ / 1MB); break }
+            { $_ -ge 1KB } { "{0:N2} KB" -f ($_ / 1KB); break }
+            default { "$_ bytes" }
+        }
     }
 }
 
 
 <#
 .SYNOPSIS
-Verifies FFmpeg and FFprobe availability and HEVC support.
+Verifies the availability and capabilities of FFmpeg and FFprobe.
 
 .DESCRIPTION
-Checks if 'ffmpeg' and 'ffprobe' executables are accessible in the system's PATH.
-Additionally, it verifies if the 'libx265' encoder is compiled into the FFmpeg build
-and checks for available hardware acceleration methods.
+This function performs several checks to ensure that FFmpeg and FFprobe are correctly
+installed and accessible in the system's PATH environment variable. It also confirms
+the presence of the 'libx265' encoder (for HEVC support) and identifies any available
+hardware acceleration methods (e.g., CUDA, NVENC, QSV). Detailed logs are generated
+for each check.
 
-.OUTPUTS
-[bool] Returns $true if all FFmpeg/FFprobe requirements are met, otherwise $false.
+.RETURNS
+[bool] Returns $true if all necessary FFmpeg/FFprobe components are verified and
+HEVC encoding is supported; otherwise, returns $false.
 
 .NOTES
-Requires external 'ffmpeg' and 'ffprobe' binaries to be installed and added to PATH.
+Requires 'ffmpeg.exe' and 'ffprobe.exe' binaries to be present in an accessible PATH.
+Provides specific error messages if components are missing or if libx265 is not found.
 #>
 function Test-FFmpeg {
-    Write-DebugInfo "Verifying FFmpeg and FFprobe availability and capabilities..."
+    [CmdletBinding()]
+    param() # No parameters for this function
+
+    Write-DebugInfo "Initiating FFmpeg and FFprobe system checks..."
+
+    # Define common executable names
+    $ffmpegExe = "ffmpeg"
+    $ffprobeExe = "ffprobe"
+
     try {
-        # Test FFmpeg
-        $ffmpegFullOutput = (ffmpeg -version 2>&1) | Out-String
-        if ($LASTEXITCODE -ne 0 -or -not ($ffmpegFullOutput -match 'ffmpeg version')) {
-            Write-Log "FFmpeg test failed! Not found or command error." -foregroundColor $errorColor
+        # --- 1. Test FFmpeg basic execution and version ---
+        Write-DebugInfo "Testing FFmpeg command existence..."
+        $ffmpegOutput = & $ffmpegExe -version 2>&1 | Out-String
+        if ($LASTEXITCODE -ne 0 -or -not ($ffmpegOutput -match 'ffmpeg version')) {
+            Write-Log "FFmpeg test failed! '$ffmpegExe' command not found or returned an error." -foregroundColor $errorColor
+            Write-Log "Please ensure FFmpeg is installed and its directory is in your system's PATH." -foregroundColor $errorColor
             return $false
         }
-        $ffmpegVersion = ($ffmpegFullOutput | Select-String -Pattern 'ffmpeg version').Line.Split()[2]
-
-        # Test FFprobe
-        $ffprobeFullOutput = (ffprobe -version 2>&1) | Out-String
-        if ($LASTEXITCODE -ne 0 -or -not ($ffprobeFullOutput -match 'ffprobe version')) {
-            Write-Log "FFprobe test failed! Not found or command error." -foregroundColor $errorColor
-            return $false
-        }
-        $ffprobeVersion = ($ffprobeFullOutput | Select-String -Pattern 'ffprobe version').Line.Split()[2]
-
-        # Check for libx265 encoder
-        $x265EncoderInfo = ffmpeg -encoders 2>&1 | Select-String -Pattern 'libx265'
-        if (-not $x265EncoderInfo) {
-            Write-Log "FFmpeg found, but 'libx265' encoder is not available." -foregroundColor $errorColor
-            Write-Log "Please ensure you are using an FFmpeg build with HEVC (libx265) support." -foregroundColor $errorColor
-            return $false
-        }
-
-        # Check for hardware acceleration support
-        $hwaccelInfo = ffmpeg -hwaccels 2>&1 | Out-String
-        $hwaccelsFound = @()
-        if ($hwaccelInfo -match 'cuda|dxva2|qsv|d3d11va|vdpau|amf|nvenc') {
-            # Extract specific hardware acceleration methods
-            $hwaccelsFound = ($hwaccelInfo | Select-String -Pattern '(?:cuda|dxva2|qsv|d3d11va|vdpau|amf|nvenc)').Matches.Value | Select-Object -Unique
-        }
-
-        if ($hwaccelsFound.Count -gt 0) {
-            Write-Log "Hardware acceleration available: $($hwaccelsFound -join ', ')" -foregroundColor $successColor
-        } else {
-            Write-Log "No common hardware acceleration methods detected (e.g., CUDA, QSV, NVENC)." -foregroundColor $warningColor
-        }
-
+        $ffmpegVersion = ($ffmpegOutput | Select-String -Pattern 'ffmpeg version').Line.Split()[2]
         Write-Log "FFmpeg version: $ffmpegVersion" -foregroundColor $infoColor
+
+        # --- 2. Test FFprobe basic execution and version ---
+        Write-DebugInfo "Testing FFprobe command existence..."
+        $ffprobeOutput = & $ffprobeExe -version 2>&1 | Out-String
+        if ($LASTEXITCODE -ne 0 -or -not ($ffprobeOutput -match 'ffprobe version')) {
+            Write-Log "FFprobe test failed! '$ffprobeExe' command not found or returned an error." -foregroundColor $errorColor
+            Write-Log "Please ensure FFprobe is installed and its directory is in your system's PATH." -foregroundColor $errorColor
+            return $false
+        }
+        $ffprobeVersion = ($ffprobeOutput | Select-String -Pattern 'ffprobe version').Line.Split()[2]
         Write-Log "FFprobe version: $ffprobeVersion" -foregroundColor $infoColor
+
+        # --- 3. Check for libx265 encoder ---
+        Write-DebugInfo "Checking for libx265 encoder support..."
+        $x265EncoderInfo = & $ffmpegExe -encoders 2>&1 | Select-String -Pattern 'libx265'
+        if (-not $x265EncoderInfo) {
+            Write-Log "HEVC encoder ('libx265') not found in FFmpeg. This build cannot encode HEVC." -foregroundColor $errorColor
+            Write-Log "Please download an FFmpeg build that includes libx265 (e.g., from gyan.dev or official sources)." -foregroundColor $errorColor
+            return $false
+        }
         Write-Log "HEVC encoder (libx265): Available" -foregroundColor $successColor
 
+        # --- 4. Check for hardware acceleration support ---
+        Write-DebugInfo "Detecting hardware acceleration methods..."
+        $hwaccelInfo = & $ffmpegExe -hwaccels 2>&1 | Out-String
+        $hwaccelsFound = @()
+
+        # Regex to find common hardware acceleration methods
+        $pattern = "(?i)\b(?:cuda|nvenc|qsv|amf|vdpau|d3d11va|videotoolbox|libmfx)\b"
+        $matches = [regex]::Matches($hwaccelInfo, $pattern)
+        
+        foreach ($match in $matches) {
+            $hwaccelsFound += $match.Value # Add matched string (e.g., "cuda", "qsv")
+        }
+        
+        $hwaccelsFound = $hwaccelsFound | Select-Object -Unique
+
+        if ($hwaccelsFound.Count -gt 0) {
+            Write-Log "Detected hardware acceleration: $($hwaccelsFound -join ', ')" -foregroundColor $infoColor
+        } else {
+            Write-Log "No common hardware acceleration methods detected (e.g., CUDA, NVENC, QSV)." -foregroundColor $warningColor
+            Write-Log "Conversion will proceed using CPU, which may be slower." -foregroundColor $warningColor
+        }
+
+        Write-Log "All FFmpeg/FFprobe requirements met." -foregroundColor $successColor
         return $true
     }
     catch {
-        Write-Log "An unexpected error occurred during FFmpeg/FFprobe test: $($_.Exception.Message)" -foregroundColor $errorColor
-        Write-Log "Please ensure FFmpeg and FFprobe are installed and in your system's PATH." -foregroundColor $errorColor
+        Write-Log "An unhandled error occurred during FFmpeg/FFprobe checks: $($_.Exception.Message)" -foregroundColor $errorColor
+        Write-Log "Ensure your PATH environment variable is correctly configured and permissions allow execution." -foregroundColor $errorColor
         return $false
     }
 }
@@ -339,24 +380,38 @@ function Test-FFmpeg {
 
 <#
 .SYNOPSIS
-Retrieves media information using FFprobe.
+Retrieves essential media information from a video file using FFprobe.
 
 .DESCRIPTION
-Extracts video stream metadata from a media file using FFprobe.
+This function executes 'ffprobe' to extract specific metadata about the primary
+video stream, including codec name, resolution, pixel format, duration, and bitrate.
+It is designed to handle various FFprobe output scenarios, including non-existent files,
+execution errors, and invalid JSON output.
 
-.PARAMETER filePath
-Path to the media file.
+.PARAMETER FilePath
+The full path to the media file for which information is to be retrieved.
+This parameter is mandatory.
 
-.OUTPUTS
-PSObject containing media information or $null on failure.
+.RETURNS
+[PSObject] An object containing the parsed media stream information (e.g.,
+'codec_name', 'width', 'height', 'duration', 'bit_rate'); returns $null on failure.
+
+.NOTES
+Requires 'ffprobe.exe' to be installed and accessible via the system's PATH.
+Designed to be robust against common FFprobe execution and parsing issues.
 #>
 function Get-MediaInfo {
-    param([string]$filePath)
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$FilePath
+    )
 
-    Write-DebugInfo "Attempting to get media info for: $filePath"
+    Write-DebugInfo "Attempting to get media info for: $FilePath"
 
-    if (-not (Test-Path $filePath -PathType Leaf)) {
-        Write-DebugInfo "File not found: $filePath"
+    if (-not (Test-Path $FilePath -PathType Leaf)) {
+        Write-Log "Input file '$FilePath' not found for media info extraction." -foregroundColor $script:errorColor
+        Write-DebugInfo "Test-Path check failed for: $FilePath"
         return $null
     }
 
@@ -366,38 +421,67 @@ function Get-MediaInfo {
             "-select_streams", "v:0",
             "-show_entries", "stream=codec_name,width,height,pix_fmt,duration,bit_rate",
             "-of", "json",
-            $filePath
+            $FilePath
         )
 
-        Write-DebugInfo "Executing: ffprobe $($ffprobeParams -join ' ')"
-        $ffprobeOutput = & ffprobe @ffprobeParams 2>&1
+        Write-DebugInfo "Executing ffprobe: ffprobe $($ffprobeParams -join ' ')"
 
-        if ($LASTEXITCODE -ne 0) {
-            Write-DebugInfo "FFprobe exited with code $LASTEXITCODE. Output: `n$ffprobeOutput"
+        # Execute ffprobe and capture output
+        $processInfo = New-Object System.Diagnostics.ProcessStartInfo
+        $processInfo.FileName = "ffprobe"
+        $processInfo.Arguments = $ffprobeParams -join ' '
+        $processInfo.RedirectStandardOutput = $true
+        $processInfo.RedirectStandardError = $true
+        $processInfo.UseShellExecute = $false
+        $processInfo.CreateNoWindow = $true
+
+        $process = New-Object System.Diagnostics.Process
+        $process.StartInfo = $processInfo
+        $process.Start() | Out-Null
+
+        $ffprobeStdOut = $process.StandardOutput.ReadToEnd()
+        $ffprobeStdErr = $process.StandardError.ReadToEnd()
+
+        $process.WaitForExit()
+
+        if ($process.ExitCode -ne 0) {
+            Write-Log "FFprobe failed for '$FilePath' with exit code $($process.ExitCode)." -foregroundColor $script:errorColor
+            Write-DebugInfo "FFprobe StdErr for '$FilePath': `n$ffprobeStdErr"
+            Write-DebugInfo "FFprobe StdOut (if any) for '$FilePath': `n$ffprobeStdOut"
             return $null
         }
 
-        $ffprobeOutputString = ($ffprobeOutput | Out-String).Trim()
-        if ($ffprobeOutputString.StartsWith("{") -and $ffprobeOutputString.EndsWith("}")) {
-            Write-DebugInfo "FFprobe returned valid JSON. Parsing..."
-            $mediaInfo = $ffprobeOutputString | ConvertFrom-Json -ErrorAction Stop
-        }
-        else {
-            Write-DebugInfo "FFprobe did not return valid JSON for '$filePath'."
-            Write-DebugInfo "FFprobe raw output: `n$ffprobeOutputString"
+        $ffprobeOutputString = $ffprobeStdOut.Trim()
+
+        # Basic JSON format validation
+        if (-not ($ffprobeOutputString.StartsWith("{") -and $ffprobeOutputString.EndsWith("}"))) {
+            Write-Log "FFprobe returned invalid or no JSON output for '$FilePath'." -foregroundColor $script:errorColor
+            Write-DebugInfo "FFprobe raw output for '$FilePath': `n$ffprobeOutputString"
+            Write-DebugInfo "FFprobe StdErr (if any) for '$FilePath': `n$ffprobeStdErr"
             return $null
         }
 
+        # Attempt to parse JSON
+        $mediaInfo = $ffprobeOutputString | ConvertFrom-Json -ErrorAction Stop
+
+        # Validate parsed object structure
         if ($null -eq $mediaInfo -or $null -eq $mediaInfo.streams -or $mediaInfo.streams.Count -eq 0) {
-            Write-DebugInfo "Could not parse video stream info from ffprobe output for '$filePath'."
+            Write-Log "Could not find video stream information in FFprobe output for '$FilePath'." -foregroundColor $script:errorColor
+            Write-DebugInfo "Parsed FFprobe object structure: $($mediaInfo | ConvertTo-Json -Depth 3)"
             return $null
         }
 
-        Write-DebugInfo "Successfully retrieved info for '$filePath'."
+        Write-DebugInfo "Successfully retrieved media info for '$FilePath'."
         return $mediaInfo.streams[0]
     }
+    catch [System.Management.Automation.JsonException] {
+        Write-Log "Failed to parse FFprobe JSON for '$FilePath': $($_.Exception.Message)" -foregroundColor $script:errorColor
+        Write-DebugInfo "JSON parsing error details: $($_.Exception.InnerException.Message)"
+        return $null
+    }
     catch {
-        Write-DebugInfo "FFprobe error for '$filePath': $($_.Exception.Message)"
+        Write-Log "An unexpected error occurred during Get-MediaInfo for '$FilePath': $($_.Exception.Message)" -foregroundColor $script:errorColor
+        Write-DebugInfo "Detailed error: $($_.Exception | Format-List -Force)"
         return $null
     }
 }
