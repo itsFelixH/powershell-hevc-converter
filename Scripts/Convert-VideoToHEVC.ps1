@@ -35,7 +35,7 @@ continuation after each batch. If not specified, all files will be processed at 
 .PARAMETER crf
 Constant Rate Factor (CRF) value for libx265 encoding.
 Lower values result in higher quality and larger file sizes.
-Acceptable range is 0 (lossless) to 51 (lowest quality). Default is 23.
+Acceptable range is 0 (lossless) to 51 (lowest quality). Default is 28.
 
 .PARAMETER preset
 Encoding preset for libx265. Controls the trade-off between encoding speed and compression efficiency.
@@ -136,12 +136,16 @@ Loads an encoding profile from JSON file.
 
 .DESCRIPTION
 Retrieves encoding settings from a predefined profile in the Preset-Profiles directory.
+Handles file existence checks and JSON parsing errors.
 
 .PARAMETER profileName
 Name of the profile to load (without .json extension).
 
 .OUTPUTS
-PSObject containing profile settings or $null if not found.
+[PSObject] An object containing profile settings, or $null if not found/failed.
+
+.NOTES
+Assumes profile JSON files are in a 'Preset-Profiles' subdirectory relative to the script.
 #>
 function Get-EncodingProfile {
     param([string]$profileName)
@@ -243,25 +247,31 @@ function Format-FileSize {
 Verifies FFmpeg and FFprobe availability and HEVC support.
 
 .DESCRIPTION
-Checks system PATH for FFmpeg binaries and verifies libx265 encoder is available.
+Checks if 'ffmpeg' and 'ffprobe' executables are accessible in the system's PATH.
+Additionally, it verifies if the 'libx265' encoder is compiled into the FFmpeg build
+and checks for available hardware acceleration methods.
 
 .OUTPUTS
-Boolean indicating if requirements are met.
+[bool] Returns $true if all FFmpeg/FFprobe requirements are met, otherwise $false.
+
+.NOTES
+Requires external 'ffmpeg' and 'ffprobe' binaries to be installed and added to PATH.
 #>
 function Test-FFmpeg {
+    Write-DebugInfo "Verifying FFmpeg and FFprobe availability and capabilities..."
     try {
         # Test FFmpeg
-        $ffmpegFullOutput = ffmpeg -version 2>&1 | Out-String
-        if (-not $?) {
-            Write-Log "FFmpeg test failed!" -foregroundColor $errorColor
+        $ffmpegFullOutput = (ffmpeg -version 2>&1) | Out-String
+        if ($LASTEXITCODE -ne 0 -or -not ($ffmpegFullOutput -match 'ffmpeg version')) {
+            Write-Log "FFmpeg test failed! Not found or command error." -foregroundColor $errorColor
             return $false
         }
         $ffmpegVersion = ($ffmpegFullOutput | Select-String -Pattern 'ffmpeg version').Line.Split()[2]
 
         # Test FFprobe
-        $ffprobeFullOutput = ffprobe -version 2>&1 | Out-String
-        if (-not $?) {
-            Write-Log "FFprobe test failed!" -foregroundColor $errorColor
+        $ffprobeFullOutput = (ffprobe -version 2>&1) | Out-String
+        if ($LASTEXITCODE -ne 0 -or -not ($ffprobeFullOutput -match 'ffprobe version')) {
+            Write-Log "FFprobe test failed! Not found or command error." -foregroundColor $errorColor
             return $false
         }
         $ffprobeVersion = ($ffprobeFullOutput | Select-String -Pattern 'ffprobe version').Line.Split()[2]
@@ -269,24 +279,33 @@ function Test-FFmpeg {
         # Check for libx265 encoder
         $x265EncoderInfo = ffmpeg -encoders 2>&1 | Select-String -Pattern 'libx265'
         if (-not $x265EncoderInfo) {
-            Write-Log "FFmpeg found, but 'libx265' encoder is not available. Please use a build with HEVC support." -foregroundColor $errorColor
+            Write-Log "FFmpeg found, but 'libx265' encoder is not available." -foregroundColor $errorColor
+            Write-Log "Please ensure you are using an FFmpeg build with HEVC (libx265) support." -foregroundColor $errorColor
             return $false
         }
 
         # Check for hardware acceleration support
-        $hwaccelInfo = ffmpeg -hwaccels 2>&1
-        if ($hwaccelInfo -match 'nvenc|qsv|amf') {
-            Write-Log "Hardware acceleration is available: $($matches[0])" -foregroundColor $successColor
+        $hwaccelInfo = ffmpeg -hwaccels 2>&1 | Out-String
+        $hwaccelsFound = @()
+        if ($hwaccelInfo -match 'cuda|dxva2|qsv|d3d11va|vdpau|amf|nvenc') {
+            # Extract specific hardware acceleration methods
+            $hwaccelsFound = ($hwaccelInfo | Select-String -Pattern '(?:cuda|dxva2|qsv|d3d11va|vdpau|amf|nvenc)').Matches.Value | Select-Object -Unique
+        }
+
+        if ($hwaccelsFound.Count -gt 0) {
+            Write-Log "Hardware acceleration available: $($hwaccelsFound -join ', ')" -foregroundColor $successColor
+        } else {
+            Write-Log "No common hardware acceleration methods detected (e.g., CUDA, QSV, NVENC)." -foregroundColor $warningColor
         }
 
         Write-Log "FFmpeg version: $ffmpegVersion" -foregroundColor $infoColor
         Write-Log "FFprobe version: $ffprobeVersion" -foregroundColor $infoColor
-        Write-Log "HEVC encoder: Available" -foregroundColor $successColor
+        Write-Log "HEVC encoder (libx265): Available" -foregroundColor $successColor
 
         return $true
     }
     catch {
-        Write-Log "Error testing FFmpeg/FFprobe: $_" -foregroundColor $errorColor
+        Write-Log "An unexpected error occurred during FFmpeg/FFprobe test: $($_.Exception.Message)" -foregroundColor $errorColor
         Write-Log "Please ensure FFmpeg and FFprobe are installed and in your system's PATH." -foregroundColor $errorColor
         return $false
     }
@@ -555,7 +574,8 @@ for ($batchNumber = 1; ($processedFiles -lt $totalFiles) -and -not $exitScript; 
                     "-y",
                     "-loglevel", "info", # Keep loglevel info for ffmpeg progress info
                     "-i", $inputPath,
-                    "-vf", "scale=$($width - $isOddWidth):$($height - $isOddHeight)"
+                    # Apply resolution adjustment if needed
+                    if ($isOddWidth -or $isOddHeight) { "-vf", "scale=$($width - $isOddWidth):$($height - $isOddHeight)" } else { $null },
                     "-map", "0:v:0", # Map only the first video stream
                     "-map", "0:a?", # Map all audio streams if they exist
                     "-map", "0:s?", # Map all subtitle streams if they exist
@@ -577,7 +597,7 @@ for ($batchNumber = 1; ($processedFiles -lt $totalFiles) -and -not $exitScript; 
                     "-c:s", "copy",
                     "-x265-params", "log-level=error",
                     "-pix_fmt", "yuv420p10le",
-                    "-tag:v", "hvc1",
+                    "-tag:v", "hvc1", # Ensure proper tag for HEVC
                     $outputPath
                 )
 
@@ -672,13 +692,22 @@ for ($batchNumber = 1; ($processedFiles -lt $totalFiles) -and -not $exitScript; 
     if ($doBatching -and ($processedFiles -lt $totalFiles)) {
         Write-Log "`n"
         Write-Log ("-" * 80)
-        Write-Log "Batch $batchNumber completed. Total processed: $processedFiles/$totalFiles." -foregroundColor $infoColor
-        Write-Log "1) Continue processing next batch." -foregroundColor $successColor
-        Write-Log "2) Exit script now." -foregroundColor $errorColor
-        $choice = Read-Host "`nEnter your choice (1 or 2)"
+        Write-Log "Batch $batchNumber/$batches completed. Total processed: $processedFiles/$totalFiles." -foregroundColor $infoColor
+        Write-Log "Remaining files: $($totalFiles - $processedFiles)" -foregroundColor $infoColor
+
+        $options = @{
+            'c' = "Continue processing next batch."
+            'x' = "Exit script now."
+        }
+
+        $prompt = "`nChoose an option:`n"
+        $options.Keys | ForEach-Object { $prompt += "[$_] $($options.$_)`n" }
+        $prompt += "Enter your choice: "
+
+        $choice = Read-Host -Prompt $prompt
 
         switch ($choice) {
-            "1" { Write-Log "Continuing to next batch..." -foregroundColor $infoColor; Start-Sleep -Seconds 2 }
+            "1" { Write-Log "Continuing to next batch..." -foregroundColor $infoColor; Start-Sleep -Seconds 1 }
             "2" { Write-Log "Exiting script gracefully." -foregroundColor $warningColor; $exitScript = $true }
             default { Write-Log "Invalid selection. Exiting script gracefully." -foregroundColor $errorColor; $exitScript = $true }
         }
