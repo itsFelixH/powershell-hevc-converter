@@ -56,7 +56,7 @@ jobs:
         $scripts = Get-ChildItem -Path ./Scripts -Recurse -Include *.ps1 -ErrorAction SilentlyContinue
         foreach ($script in $scripts) {
             $scriptName = $script.BaseName
-            New-MarkdownHelp -Command $script.FullName -OutputFolder "./docs/Scripts" -Force
+            New-MarkdownHelp -Path $script.FullName -OutputFolder "./docs/Scripts" -Force
         }
         
         # Create index file
