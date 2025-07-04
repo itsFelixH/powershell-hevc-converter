@@ -117,20 +117,13 @@ jobs:
 
           # Define script paths
           $convertScriptPath = "./Scripts/Convert-VideoToHEVC.ps1"
-          $optimizeScriptPath = "./Scripts/Optimize-HEVCSettings.ps1"
 
           # Define output paths for documentation
           $convertDocPath = "./docs/Convert-VideoToHEVC.md"
-          $optimizeDocPath = "./docs/Optimize-HEVCSettings.md"
 
           # Generate documentation for Convert-VideoToHEVC.ps1
           Write-Host "Generating documentation for $convertScriptPath..."
           Convert-CommentHelpToMarkdown -ScriptPath $convertScriptPath -OutputFilePath $convertDocPath
-
-          # Generate documentation for Optimize-HEVCSettings.ps1
-          # (Assuming it will also have comment-based help at the top level)
-          Write-Host "Generating documentation for $optimizeScriptPath..."
-          Convert-CommentHelpToMarkdown -ScriptPath $optimizeScriptPath -OutputFilePath $optimizeDocPath
 
           # Create index file
           $indexContent = @"
@@ -138,7 +131,6 @@ jobs:
 
           ## Scripts
           - [Convert-VideoToHEVC](Convert-VideoToHEVC.md)
-          - [Optimize-HEVCSettings](Optimize-HEVCSettings.md)
 
           *Updated: $(Get-Date -Format "yyyy-MM-dd HH:mm")*
           "@
