@@ -28,7 +28,6 @@ jobs:
           if (-not (Test-Path ./docs)) {
               New-Item -Path ./docs -ItemType Directory -Force
           }
-        shell: pwsh
 
       - name: Generate Script Documentation (Custom for .ps1 files)
         shell: pwsh
@@ -145,7 +144,6 @@ jobs:
           "@
 
           Set-Content -Path ./docs/index.md -Value $indexContent -Encoding Utf8
-        shell: pwsh
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
