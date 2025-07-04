@@ -1,0 +1,157 @@
+name: Generate Documentation
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  build-and-deploy-docs:
+    runs-on: windows-latest # Use a Windows runner for PowerShell
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up PowerShell
+        uses: actions/setup-powershell@v1
+        with:
+          pwsh-version: '7.x' # Use PowerShell Core 7.x
+
+      - name: Set Execution Policy
+        run: Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope CurrentUser
+
+      - name: Install platyPS module
+        run: Install-Module -Name platyPS -Force -Scope CurrentUser -AllowClobber
+
+      - name: Create docs directory
+        run: |
+          if (-not (Test-Path ./docs)) {
+              New-Item -Path ./docs -ItemType Directory -Force
+          }
+        shell: pwsh
+
+      - name: Generate Script Documentation (Custom for .ps1 files)
+        run: |
+          # Function to extract comment-based help and format it as basic Markdown
+          function Convert-CommentHelpToMarkdown {
+              param (
+                  [Parameter(Mandatory=$true)]
+                  [string]$ScriptPath,
+                  [Parameter(Mandatory=$true)]
+                  [string]$OutputFilePath
+              )
+
+              $scriptContent = Get-Content $ScriptPath -Raw
+              $markdownContent = ""
+
+              # Regex to find the entire comment-based help block
+              if ($scriptContent -match '(?smi)^\s*<#\s*(.*?)\s*#>(\r?\n|\r)') {
+                  $commentBlock = $matches[1]
+
+                  # Add a main heading for the script
+                  $scriptName = [System.IO.Path]::GetFileNameWithoutExtension($ScriptPath)
+                  $markdownContent += "# $scriptName`n`n"
+
+                  # Process each line of the comment block
+                  $commentBlockLines = $commentBlock -split "`r?`n"
+                  foreach ($line in $commentBlockLines) {
+                      $trimmedLine = $line.Trim()
+
+                      # Handle SYNOPSIS, DESCRIPTION, NOTES
+                      if ($trimmedLine -match '^\.SYNOPSIS\s*(.*)') {
+                          $markdownContent += "## Synopsis`n`n"
+                          $markdownContent += "$($matches[1].Trim())`n`n"
+                      } elseif ($trimmedLine -match '^\.DESCRIPTION\s*(.*)') {
+                          $markdownContent += "## Description`n`n"
+                          $markdownContent += "$($matches[1].Trim())`n`n"
+                      } elseif ($trimmedLine -match '^\.NOTES\s*(.*)') {
+                          $markdownContent += "## Notes`n`n"
+                          $markdownContent += "$($matches[1].Trim())`n`n"
+                      }
+                      # Handle PARAMETER
+                      elseif ($trimmedLine -match '^\.PARAMETER\s+(\S+)\s*(.*)') {
+                          $paramName = $matches[1]
+                          $paramDesc = $matches[2].Trim()
+                          $markdownContent += "### Parameter: `$paramName`n`n"
+                          $markdownContent += "$paramDesc`n`n"
+                      }
+                      # Handle EXAMPLE
+                      elseif ($trimmedLine -match '^\.EXAMPLE\s*(.*)') {
+                          $markdownContent += "### Example`n`n"
+                          $exampleContent = $matches[1].Trim()
+                          # Capture subsequent lines as part of the example until another dot-directive or end of block
+                          $exampleLines = @($exampleContent)
+                          $i = [array]::IndexOf($commentBlockLines, $line) + 1
+                          while ($i -lt $commentBlockLines.Length) {
+                              $nextLine = $commentBlockLines[$i].Trim()
+                              if ($nextLine -match '^\.[A-Z]+' -or $nextLine -eq '#>') {
+                                  break
+                              }
+                              $exampleLines += $nextLine
+                              $i++
+                          }
+                          $markdownContent += "```powershell`n"
+                          $markdownContent += ($exampleLines -join "`n")
+                          $markdownContent += "`n```n`n"
+                      }
+                      # Handle INPUTS, OUTPUTS
+                      elseif ($trimmedLine -match '^\.INPUTS\s*(.*)') {
+                          $markdownContent += "## Inputs`n`n"
+                          $markdownContent += "$($matches[1].Trim())`n`n"
+                      } elseif ($trimmedLine -match '^\.OUTPUTS\s*(.*)') {
+                          $markdownContent += "## Outputs`n`n"
+                          $markdownContent += "$($matches[1].Trim())`n`n"
+                      }
+                      # Add any other lines directly if they don't match a directive
+                      elseif (-not ($trimmedLine -match '^\.[A-Z]+')) {
+                          $markdownContent += "$trimmedLine`n"
+                      }
+                  }
+              } else {
+                  $markdownContent += "# $($scriptName)`n`n"
+                  $markdownContent += "No comment-based help block found for this script.`n"
+              }
+
+              Set-Content -Path $OutputFilePath -Value $markdownContent -Encoding Utf8
+          }
+
+          # Define script paths
+          $convertScriptPath = "./Scripts/Convert-VideoToHEVC.ps1"
+          $optimizeScriptPath = "./Scripts/Optimize-HEVCSettings.ps1"
+
+          # Define output paths for documentation
+          $convertDocPath = "./docs/Convert-VideoToHEVC.md"
+          $optimizeDocPath = "./docs/Optimize-HEVCSettings.md"
+
+          # Generate documentation for Convert-VideoToHEVC.ps1
+          Write-Host "Generating documentation for $convertScriptPath..."
+          Convert-CommentHelpToMarkdown -ScriptPath $convertScriptPath -OutputFilePath $convertDocPath
+
+          # Generate documentation for Optimize-HEVCSettings.ps1
+          # (Assuming it will also have comment-based help at the top level)
+          Write-Host "Generating documentation for $optimizeScriptPath..."
+          Convert-CommentHelpToMarkdown -ScriptPath $optimizeScriptPath -OutputFilePath $optimizeDocPath
+
+          # Create index file
+          $indexContent = @"
+          # PowerShell HEVC Converter Documentation
+
+          ## Scripts
+          - [Convert-VideoToHEVC](Convert-VideoToHEVC.md)
+          - [Optimize-HEVCSettings](Optimize-HEVCSettings.md)
+
+          *Updated: $(Get-Date -Format "yyyy-MM-dd HH:mm")*
+          "@
+
+          Set-Content -Path ./docs/index.md -Value $indexContent -Encoding Utf8
+        shell: pwsh
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs
+          publish_branch: gh-pages # Deploy to the gh-pages branch
+          force_orphan: true # Overwrite gh-pages history
