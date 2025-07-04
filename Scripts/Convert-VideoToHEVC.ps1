@@ -132,38 +132,46 @@ $logFilePath = Join-Path -Path $outputFolder -ChildPath "${logFileTimestamp}_con
 
 <#
 .SYNOPSIS
-Loads an encoding profile from JSON file.
+Loads an encoding profile from a JSON file.
 
 .DESCRIPTION
-Retrieves encoding settings from a predefined profile in the Preset-Profiles directory.
-Handles file existence checks and JSON parsing errors.
+Retrieves encoding settings from a predefined profile located in the 'Preset-Profiles'
+subdirectory relative to the script's root. It handles cases where the profile file
+doesn't exist or if there are issues parsing the JSON content.
 
-.PARAMETER profileName
-Name of the profile to load (without .json extension).
+.PARAMETER ProfileName
+The name of the profile to load (e.g., "Animation" for "Animation.json").
 
-.OUTPUTS
-[PSObject] An object containing profile settings, or $null if not found/failed.
+.RETURNS
+[PSObject] An object containing the profile's settings if successfully loaded;
+otherwise, returns $null.
 
 .NOTES
-Assumes profile JSON files are in a 'Preset-Profiles' subdirectory relative to the script.
+Assumes profile JSON files are located at `$PSScriptRoot\Preset-Profiles\$ProfileName.json`.
 #>
 function Get-EncodingProfile {
-    param([string]$profileName)
-    
-    $profilePath = Join-Path -Path $PSScriptRoot -ChildPath "Preset-Profiles\$profileName.json"
-    
-    if (-not (Test-Path $profilePath)) {
-        Write-Log "Profile '$profileName' not found! Using default settings." -foregroundColor $warningColor
-        return $null
-    }
-    
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ProfileName
+    )
+
+    $profilePath = Join-Path -Path $PSScriptRoot -ChildPath "Preset-Profiles\$ProfileName.json"
+
+    Write-DebugInfo "Attempting to load profile from: $profilePath"
     try {
-        $profile = Get-Content $profilePath -Raw | ConvertFrom-Json
-        Write-Log "Loaded profile: $($profile.name) - $($profile.description)" -foregroundColor $infoColor
+        $profileContent = Get-Content $profilePath -Raw -ErrorAction Stop
+        $profile = $profileContent | ConvertFrom-Json -ErrorAction Stop
+        Write-Log "Successfully loaded profile: $($profile.name) - $($profile.description)" -foregroundColor $script:infoColor
         return $profile
     }
+    catch [System.Management.Automation.JsonException] { # Catch specific JSON parsing errors
+        Write-Log "Error parsing JSON for profile '$ProfileName': $($_.Exception.Message)" -foregroundColor $script:errorColor
+        Write-DebugInfo "Raw profile content that failed to parse: `n$profileContent"
+        return $null
+    }
     catch {
-        Write-Log "Error loading profile: $($_.Exception.Message)" -foregroundColor $errorColor
+        Write-Log "An unexpected error occurred while loading profile '$ProfileName': $($_.Exception.Message)" -foregroundColor $script:errorColor
         return $null
     }
 }
@@ -176,43 +184,60 @@ Writes formatted log messages to console and optionally to a file.
 .DESCRIPTION
 Outputs messages with timestamp and color coding. Can write to both console and log file.
 
-.PARAMETER message
+.PARAMETER Message
 The message to log.
 
-.PARAMETER foregroundColor
+.PARAMETER ForegroundColor 
 Console text color (default: White).
 #>
 function Write-Log {
+    [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [string]$message,
-        [string]$foregroundColor = "White"
+        [string]$Message,
+        [string]$ForegroundColor  = "White"
     )
+
     # Output to console
-    Write-Host "$message" -ForegroundColor $foregroundColor
+    Write-Host $Message -ForegroundColor $ForegroundColor
 
     # Output to log file if enabled
     if ($LogToFile) {
-        $timestampedMessage = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] $message"
-        Add-Content -Path $logFilePath -Value $timestampedMessage
+        try {
+            $timestampedMessage = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] $Message"
+            Add-Content -Path $logFilePath -Value $timestampedMessage -ErrorAction Stop
+        }
+        catch {
+            Write-Host "WARNING: Failed to write to log file '$logFilePath'. Error: $($_.Exception.Message)" -ForegroundColor $warningColor
+        }
     }
 }
 
 
 <#
 .SYNOPSIS
-Writes debug information when DebugMode is enabled.
+Outputs debug messages when DebugMode is enabled.
 
 .DESCRIPTION
-Outputs debug messages with detailed timestamp. Only active when -DebugMode switch is used.
+This function serves as a conditional logger for debug information. Messages are only
+displayed on the console and written to the log file if the `$DebugMode` switch
+parameter in the main script is set to $true. Debug messages are timestamped
+with millisecond precision and appear in a distinct magenta color.
 
-.PARAMETER message
-The debug message to log.
+.PARAMETER Message
+The debug message string to be logged. This parameter is mandatory.
+
+.EXAMPLE
+Write-DebugInfo "Variable value: $myVariable"
 #>
 function Write-DebugInfo {
-    param([string]$message)
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Message
+    )
     if ($DebugMode) {
-        Write-Log "[DEBUG] $(Get-Date -Format 'HH:mm:ss.fff') - $message" -foregroundColor $debugColor
+        Write-Log "[DEBUG] $(Get-Date -Format 'HH:mm:ss.fff') - $Message" -foregroundColor $debugColor
     }
 }
 
