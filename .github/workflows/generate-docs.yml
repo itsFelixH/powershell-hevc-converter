@@ -4,13 +4,13 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch: # Allows manual triggering
+  workflow_dispatch:
 
 jobs:
   build-and-deploy-docs:
-    runs-on: windows-latest # Use a Windows runner for PowerShell
+    runs-on: windows-latest
     permissions:
-      contents: write # Grant write permission to the GITHUB_TOKEN for pushing content
+      contents: write
 
     steps:
       - name: Checkout repository
@@ -195,7 +195,6 @@ jobs:
                   <h2>Scripts</h2>
                   <ul>
                       <li><a href="./Convert-VideoToHEVC.md">Convert-VideoToHEVC.md</a> - Convert video files to HEVC (H.265) format.</li>
-                      <li><a href="./Optimize-HEVCSettings.md">Optimize-HEVCSettings.md</a> - Finds optimal HEVC encoding settings by analyzing content characteristics.</li>
                   </ul>
 
                   <div class="footer">
@@ -206,12 +205,18 @@ jobs:
           </html>
           "@
 
-          Set-Content -Path ./index.html -Value $htmlContent -Encoding Utf8
+          Set-Content -Path ./docs/index.html -Value $htmlContent -Encoding Utf8
 
+      - name: Validate files
+        shell: pwsh
+        run: |
+          Test-Path ./docs/index.html
+          Test-Path ./docs/Convert-VideoToHEVC.md
+    
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./docs
-          publish_branch: gh-pages # Deploy to the gh-pages branch
-          force_orphan: true # Overwrite gh-pages history
+          publish_branch: gh-pages
+          force_orphan: true 
