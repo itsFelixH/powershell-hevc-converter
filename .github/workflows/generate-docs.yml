@@ -20,9 +20,11 @@ jobs:
         shell: pwsh
         run: Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope CurrentUser
 
-      - name: Install platyPS module
+      - name: Install required modules
         shell: pwsh
-        run: Install-Module -Name platyPS -Force -Scope CurrentUser -AllowClobber
+        run: |
+          Install-Module -Name platyPS -Force -Scope CurrentUser -AllowClobber
+          Install-Module -Name MarkdownToHtml -Force -Scope CurrentUser -AllowClobber
 
       - name: Create docs directory
         shell: pwsh
