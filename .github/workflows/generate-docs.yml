@@ -117,7 +117,7 @@ jobs:
           }
 
           # Define script paths
-          $convertScriptPath = "./Scripts/Convert-VideoToHEVC.ps1"
+          $convertScriptPath = "./Convert-VideoToHEVC.ps1"
 
           # Define output paths for documentation
           $convertDocPath = "./docs/Convert-VideoToHEVC.md"
