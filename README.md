@@ -1,8 +1,10 @@
 # Powershell HEVC Video Converter Script
 
+## 🌟 Overview
+
 This PowerShell script automates the conversion of various video formats to HEVC (H.265) using FFmpeg, optimizing for file size while maintaining excellent quality. It's designed for efficient batch processing, handling files recursively within a specified input folder and organizing outputs into a dedicated output directory.
 
-## Features
+## ✨ Features
 
 * **Batch Conversion:** Process multiple video files (`.mkv`, `.mp4`, `.mov`, `.wmv`, `.avi`, `.flv`, `.m4v`) in a specified input directory and its subfolders.
 * **HEVC Encoding:** Utilizes the `libx265` encoder for highly efficient H.265 compression, providing a superior balance of quality and file size compared to older codecs like H.264.
@@ -14,11 +16,13 @@ This PowerShell script automates the conversion of various video formats to HEVC
 * **Pre-flight Check:** The script validates that both `ffmpeg` and `ffprobe` are installed and available in your system's PATH before starting any conversions.
 * **Interactive Batching:** Optionally process files in smaller batches with an interactive prompt after each batch, giving you control over long-running jobs.
 
-## Prerequisites
+## 🚀 Getting Started
+
+### Prerequisites
 
 * **FFmpeg and FFprobe:** These command-line tools are essential for the conversion process. They must be installed on your system and accessible via your system's **PATH** environment variable. You can download the latest version from the [official FFmpeg website](https://ffmpeg.org/download.html).
 
-## Usage
+## 📖 Usage
 
 1. **Save the Script:** Save the provided PowerShell script as `Convert-VideoToHEVC.ps1` (or any `.ps1` filename) in a convenient location.
 2. **Open PowerShell:** Navigate to the directory where you saved the script.
@@ -102,6 +106,25 @@ The script uses a carefully selected set of FFmpeg options to ensure a good bala
 
 For more advanced FFmpeg options or to explore hardware acceleration (e.g., NVENC, QSV), refer to the [FFmpeg documentation](https://ffmpeg.org/documentation.html) and specific encoder guides (e.g., [H.265 Encoding Guide](https://trac.ffmpeg.org/wiki/Encode/H.265)).
 
-## Contributing
+## 🤝 Contributing
 
-Feel free to fork this repository, submit pull requests, or open issues for any improvements or bug fixes. Your contributions are welcome!
+Contributions are welcome! Feel free to fork this repository, submit pull requests, or open issues for any improvements, bug fixes, or new features.
+
+1. Fork the repository.
+2. Create a new branch (`git checkout -b feature/your-feature-name`).
+3. Make your changes.
+4. Test your changes thoroughly.
+5. Commit your changes (`git commit -m "feat: Add new feature"`).
+6. Push to the branch (`git push origin feature/your-feature-name`).
+7. Open a Pull Request to the main branch.
+
+Please ensure your code adheres to PowerShell best practices and includes appropriate comment-based help for any new functions or parameters.
+
+## 📄 Documentation
+
+Detailed documentation for all functions and parameters is available on [GitHub Pages](https://itsfelixh.github.io/powershell-hevc-converter/).
+This documentation is automatically generated via a GitHub Actions workflow.
+
+## 📞 Support and Issues
+
+If you encounter any issues, have questions, or need assistance, please open an issue on the [GitHub Issues page](https://github.com/itsFelixH/powershell-hevc-converter/issues).
