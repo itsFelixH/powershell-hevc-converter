@@ -618,7 +618,7 @@ jobs:
               </footer>
           </body>
           </html>
-          "@
+"@
           Set-Content -Path ./docs/index.html -Value $htmlContent
 
       - name: 🚀 Deploy to GitHub Pages
