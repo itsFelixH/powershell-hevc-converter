@@ -58,17 +58,17 @@ jobs:
                       $trimmedLine = $line.Trim()
                       
                       # Handle different help sections with emojis
-                      if ($trimmedLine -match '^\.SYNOPSIS\s*(.*)') {
+                      if ($trimmedLine -match '^\\.SYNOPSIS\s*(.*)') {
                           $markdownContent += "## 📋 Synopsis`n`n"
                           $synopsis = $matches[1].Trim()
                           if ($synopsis) { $markdownContent += "$synopsis`n`n" }
                           $currentSection = "SYNOPSIS"
-                      } elseif ($trimmedLine -match '^\.DESCRIPTION\s*(.*)') {
+                      } elseif ($trimmedLine -match '^\\.DESCRIPTION\s*(.*)') {
                           $markdownContent += "## 📖 Description`n`n"
                           $description = $matches[1].Trim()
                           if ($description) { $markdownContent += "$description`n`n" }
                           $currentSection = "DESCRIPTION"
-                      } elseif ($trimmedLine -match '^\.PARAMETER\s+(\S+)\s*(.*)') {
+                      } elseif ($trimmedLine -match '^\\.PARAMETER\s+(\S+)\s*(.*)') {
                           if ($currentSection -ne "PARAMETER") {
                               $markdownContent += "## ⚙️ Parameters`n`n"
                               $currentSection = "PARAMETER"
@@ -77,7 +77,7 @@ jobs:
                           $paramDesc = $matches[2].Trim()
                           $markdownContent += "### 🔧 \`-$paramName\``n`n"
                           if ($paramDesc) { $markdownContent += "$paramDesc`n`n" }
-                      } elseif ($trimmedLine -match '^\.EXAMPLE\s*(.*)') {
+                      } elseif ($trimmedLine -match '^\\.EXAMPLE\s*(.*)') {
                           $exampleCount++
                           if ($currentSection -ne "EXAMPLE") {
                               $markdownContent += "## 💡 Examples`n`n"
@@ -87,22 +87,22 @@ jobs:
                           $exampleContent = $matches[1].Trim()
                           $markdownContent += "\`\`\`powershell`n"
                           if ($exampleContent) { $markdownContent += "$exampleContent`n" }
-                      } elseif ($trimmedLine -match '^\.INPUTS\s*(.*)') {
+                      } elseif ($trimmedLine -match '^\\.INPUTS\s*(.*)') {
                           $markdownContent += "## 📥 Inputs`n`n"
                           $inputs = $matches[1].Trim()
                           if ($inputs) { $markdownContent += "$inputs`n`n" }
                           $currentSection = "INPUTS"
-                      } elseif ($trimmedLine -match '^\.OUTPUTS\s*(.*)') {
+                      } elseif ($trimmedLine -match '^\\.OUTPUTS\s*(.*)') {
                           $markdownContent += "## 📤 Outputs`n`n"
                           $outputs = $matches[1].Trim()
                           if ($outputs) { $markdownContent += "$outputs`n`n" }
                           $currentSection = "OUTPUTS"
-                      } elseif ($trimmedLine -match '^\.NOTES\s*(.*)') {
+                      } elseif ($trimmedLine -match '^\\.NOTES\s*(.*)') {
                           $markdownContent += "## 📝 Notes`n`n"
                           $notes = $matches[1].Trim()
                           if ($notes) { $markdownContent += "$notes`n`n" }
                           $currentSection = "NOTES"
-                      } elseif ($trimmedLine -match '^\.LINK\s*(.*)') {
+                      } elseif ($trimmedLine -match '^\\.LINK\s*(.*)') {
                           if ($currentSection -ne "LINK") {
                               $markdownContent += "## 🔗 Links`n`n"
                               $currentSection = "LINK"
@@ -167,104 +167,16 @@ jobs:
       - name: 🎨 Convert Markdown to HTML
         shell: pwsh
         run: |
-          # Create CSS using Out-File to avoid YAML indentation issues
-          $cssContent = @'
-/* Modern PowerShell Documentation Theme */
-:root {
-  --ps-blue: #012456;
-  --ps-yellow: #fed800;
-  --ps-light-blue: #0078d4;
-  --ps-gray: #f8f9fa;
-  --ps-dark-gray: #6c757d;
-  --success: #28a745;
-  --warning: #ffc107;
-  --danger: #dc3545;
-  --info: #17a2b8;
-}
-* { box-sizing: border-box; }
-body { font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif; line-height: 1.6; margin: 0; padding: 0; background: linear-gradient(135deg, var(--ps-gray) 0%, #ffffff 100%); color: #333; min-height: 100vh; }
-.container { max-width: 1200px; margin: 0 auto; padding: 2rem; background: white; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border-radius: 12px; margin-top: 2rem; margin-bottom: 2rem; }
-header { background: linear-gradient(135deg, var(--ps-blue) 0%, var(--ps-light-blue) 100%); color: white; padding: 3rem 0; margin-bottom: 2rem; border-radius: 12px; text-align: center; position: relative; overflow: hidden; }
-header h1 { margin: 0; font-size: 2.5rem; font-weight: 700; position: relative; z-index: 1; }
-header p { margin: 0.5rem 0 0 0; font-size: 1.1rem; opacity: 0.9; position: relative; z-index: 1; }
-h1, h2, h3, h4, h5, h6 { color: var(--ps-blue); margin-top: 2rem; margin-bottom: 1rem; font-weight: 600; }
-h1 { font-size: 2.2rem; border-bottom: 3px solid var(--ps-yellow); padding-bottom: 0.5rem; }
-h2 { font-size: 1.8rem; border-bottom: 2px solid var(--ps-light-blue); padding-bottom: 0.3rem; }
-h3 { font-size: 1.4rem; color: var(--ps-light-blue); }
-pre, code { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 6px; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 0.9rem; }
-pre { padding: 1.5rem; overflow-x: auto; margin: 1rem 0; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); }
-code { padding: 0.2rem 0.4rem; background: var(--ps-gray); color: var(--ps-blue); font-weight: 500; }
-pre code { background: none; padding: 0; border: none; color: inherit; }
-a { color: var(--ps-light-blue); text-decoration: none; font-weight: 500; transition: all 0.3s ease; }
-a:hover { color: var(--ps-blue); text-decoration: underline; }
-.nav-links { display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; }
-.nav-links a { background: linear-gradient(135deg, var(--ps-blue) 0%, var(--ps-light-blue) 100%); color: white; padding: 0.7rem 1.5rem; border-radius: 25px; text-decoration: none; font-weight: 500; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(1, 36, 86, 0.2); }
-.nav-links a:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(1, 36, 86, 0.3); color: white; }
-.script-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; margin: 2rem 0; }
-.script-card { background: white; border: 1px solid #e9ecef; border-radius: 12px; padding: 2rem; box-shadow: 0 4px 15px rgba(0,0,0,0.1); transition: all 0.3s ease; position: relative; overflow: hidden; }
-.script-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, var(--ps-blue), var(--ps-light-blue), var(--ps-yellow)); }
-.script-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0,0,0,0.15); }
-.script-icon { font-size: 2.5rem; margin-bottom: 1rem; display: block; }
-.script-title { font-size: 1.3rem; font-weight: 600; color: var(--ps-blue); margin-bottom: 0.5rem; }
-.script-description { color: var(--ps-dark-gray); margin-bottom: 1.5rem; line-height: 1.5; }
-.script-link { display: inline-block; background: var(--ps-light-blue); color: white; padding: 0.5rem 1rem; border-radius: 20px; text-decoration: none; font-weight: 500; transition: all 0.3s ease; }
-.script-link:hover { background: var(--ps-blue); color: white; }
-.footer { margin-top: 3rem; padding-top: 2rem; border-top: 2px solid var(--ps-gray); text-align: center; color: var(--ps-dark-gray); background: var(--ps-gray); border-radius: 8px; padding: 2rem; }
-.badge { display: inline-block; padding: 0.3rem 0.8rem; border-radius: 15px; font-size: 0.8rem; font-weight: 500; margin: 0.2rem; }
-.badge-primary { background: var(--ps-light-blue); color: white; }
-.badge-success { background: var(--success); color: white; }
-.badge-warning { background: var(--warning); color: #333; }
-.badge-info { background: var(--info); color: white; }
-@media (max-width: 768px) { .container { padding: 1rem; margin-top: 1rem; } header { padding: 2rem 1rem; } header h1 { font-size: 2rem; } .nav-links { justify-content: center; } .script-grid { grid-template-columns: 1fr; } }
-
-/* Syntax highlighting for PowerShell */
-.language-powershell .token.comment { color: #6a9955; }
-.language-powershell .token.string { color: #ce9178; }
-.language-powershell .token.keyword { color: #569cd6; }
-.language-powershell .token.function { color: #dcdcaa; }
-.language-powershell .token.variable { color: #9cdcfe; }
-'@
-          
-          # Save CSS file
-          $cssContent | Out-File -FilePath ./docs/style.css -Encoding utf8
-
+          # Create CSS using simple string to avoid YAML issues
+          $css = ':root{--ps-blue:#012456;--ps-yellow:#fed800;--ps-light-blue:#0078d4;--ps-gray:#f8f9fa;--ps-dark-gray:#6c757d;--success:#28a745;--warning:#ffc107;--danger:#dc3545;--info:#17a2b8;}*{box-sizing:border-box;}body{font-family:"Segoe UI",-apple-system,BlinkMacSystemFont,"Roboto",sans-serif;line-height:1.6;margin:0;padding:0;background:linear-gradient(135deg,var(--ps-gray) 0%,#ffffff 100%);color:#333;min-height:100vh;}.container{max-width:1200px;margin:0 auto;padding:2rem;background:white;box-shadow:0 10px 30px rgba(0,0,0,0.1);border-radius:12px;margin-top:2rem;margin-bottom:2rem;}header{background:linear-gradient(135deg,var(--ps-blue) 0%,var(--ps-light-blue) 100%);color:white;padding:3rem 0;margin-bottom:2rem;border-radius:12px;text-align:center;position:relative;overflow:hidden;}header h1{margin:0;font-size:2.5rem;font-weight:700;position:relative;z-index:1;}header p{margin:0.5rem 0 0 0;font-size:1.1rem;opacity:0.9;position:relative;z-index:1;}h1,h2,h3,h4,h5,h6{color:var(--ps-blue);margin-top:2rem;margin-bottom:1rem;font-weight:600;}h1{font-size:2.2rem;border-bottom:3px solid var(--ps-yellow);padding-bottom:0.5rem;}h2{font-size:1.8rem;border-bottom:2px solid var(--ps-light-blue);padding-bottom:0.3rem;}h3{font-size:1.4rem;color:var(--ps-light-blue);}pre,code{background:#f8f9fa;border:1px solid #e9ecef;border-radius:6px;font-family:"Consolas","Monaco","Courier New",monospace;font-size:0.9rem;}pre{padding:1.5rem;overflow-x:auto;margin:1rem 0;box-shadow:inset 0 2px 4px rgba(0,0,0,0.1);}code{padding:0.2rem 0.4rem;background:var(--ps-gray);color:var(--ps-blue);font-weight:500;}pre code{background:none;padding:0;border:none;color:inherit;}a{color:var(--ps-light-blue);text-decoration:none;font-weight:500;transition:all 0.3s ease;}a:hover{color:var(--ps-blue);text-decoration:underline;}.nav-links{display:flex;gap:1rem;margin-bottom:2rem;flex-wrap:wrap;}.nav-links a{background:linear-gradient(135deg,var(--ps-blue) 0%,var(--ps-light-blue) 100%);color:white;padding:0.7rem 1.5rem;border-radius:25px;text-decoration:none;font-weight:500;transition:all 0.3s ease;box-shadow:0 4px 15px rgba(1,36,86,0.2);}.nav-links a:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(1,36,86,0.3);color:white;}.script-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:2rem;margin:2rem 0;}.script-card{background:white;border:1px solid #e9ecef;border-radius:12px;padding:2rem;box-shadow:0 4px 15px rgba(0,0,0,0.1);transition:all 0.3s ease;position:relative;overflow:hidden;}.script-card::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--ps-blue),var(--ps-light-blue),var(--ps-yellow));}.script-card:hover{transform:translateY(-5px);box-shadow:0 8px 25px rgba(0,0,0,0.15);}.script-icon{font-size:2.5rem;margin-bottom:1rem;display:block;}.script-title{font-size:1.3rem;font-weight:600;color:var(--ps-blue);margin-bottom:0.5rem;}.script-description{color:var(--ps-dark-gray);margin-bottom:1.5rem;line-height:1.5;}.script-link{display:inline-block;background:var(--ps-light-blue);color:white;padding:0.5rem 1rem;border-radius:20px;text-decoration:none;font-weight:500;transition:all 0.3s ease;}.script-link:hover{background:var(--ps-blue);color:white;}.footer{margin-top:3rem;padding-top:2rem;border-top:2px solid var(--ps-gray);text-align:center;color:var(--ps-dark-gray);background:var(--ps-gray);border-radius:8px;padding:2rem;}.badge{display:inline-block;padding:0.3rem 0.8rem;border-radius:15px;font-size:0.8rem;font-weight:500;margin:0.2rem;}.badge-primary{background:var(--ps-light-blue);color:white;}.badge-success{background:var(--success);color:white;}.badge-warning{background:var(--warning);color:#333;}.badge-info{background:var(--info);color:white;}@media (max-width:768px){.container{padding:1rem;margin-top:1rem;}header{padding:2rem 1rem;}header h1{font-size:2rem;}.nav-links{justify-content:center;}.script-grid{grid-template-columns:1fr;}}'
+          Set-Content -Path ./docs/style.css -Value $css -Encoding utf8
 
           # Convert all Markdown files to HTML
           Get-ChildItem ./docs -Filter *.md | ForEach-Object {
               $html = ConvertFrom-Markdown -Path $_.FullName -AsHtmlFragment
               $title = $_.BaseName
               
-              $fullHtml = @'
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{0} - PowerShell HEVC Converter</title>
-    <link rel="stylesheet" href="./style.css">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🎬</text></svg>">
-</head>
-<body>
-    <header>
-        <div class="container">
-            <h1>🎬 {0}</h1>
-            <p>PowerShell HEVC Video Converter Documentation</p>
-        </div>
-    </header>
-    <main class="container">
-        <div class="nav-links">
-            <a href="./index.html">🏠 Home</a>
-            <a href="https://github.com/itsFelixH/powershell-hevc-converter">📁 Repository</a>
-            <a href="https://github.com/itsFelixH/powershell-hevc-converter/issues">🐛 Issues</a>
-        </div>
-        {1}
-    </main>
-    <footer class="container footer">
-        <p>📚 Documentation generated on {2} | 🚀 Powered by PowerShell & GitHub Actions</p>
-    </footer>
-</body>
-</html>
-'@ -f $title, $html, (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
+              $fullHtml = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>' + $title + ' - PowerShell HEVC Converter</title><link rel="stylesheet" href="./style.css"><link rel="icon" href="data:image/svg+xml,<svg xmlns=`"http://www.w3.org/2000/svg`" viewBox=`"0 0 100 100`"><text y=`".9em`" font-size=`"90`">🎬</text></svg>"></head><body><header><div class="container"><h1>🎬 ' + $title + '</h1><p>PowerShell HEVC Video Converter Documentation</p></div></header><main class="container"><div class="nav-links"><a href="./index.html">🏠 Home</a><a href="https://github.com/itsFelixH/powershell-hevc-converter">📁 Repository</a><a href="https://github.com/itsFelixH/powershell-hevc-converter/issues">🐛 Issues</a></div>' + $html + '</main><footer class="container footer"><p>📚 Documentation generated on ' + (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') + ' | 🚀 Powered by PowerShell & GitHub Actions</p></footer></body></html>'
               
               Set-Content -Path ($_.FullName -replace '\.md$', '.html') -Value $fullHtml
               Remove-Item -Path $_.FullName
@@ -279,137 +191,10 @@ a:hover { color: var(--ps-blue); text-decoration: underline; }
           # Generate script cards HTML
           $scriptCards = ""
           foreach ($script in $scriptsJson) {
-              $scriptCards += '<div class="script-card"><span class="script-icon">{0}</span><h3 class="script-title">{1}</h3><p class="script-description">{2}</p><a href="./{1}.html" class="script-link">📖 View Documentation</a></div>' -f $script.Icon, $script.Name, $script.Description
+              $scriptCards += '<div class="script-card"><span class="script-icon">' + $script.Icon + '</span><h3 class="script-title">' + $script.Name + '</h3><p class="script-description">' + $script.Description + '</p><a href="./' + $script.Name + '.html" class="script-link">📖 View Documentation</a></div>'
           }
 
-          $currentDate = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
-          $htmlContent = @'
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎬 PowerShell HEVC Converter - Documentation</title>
-    <link rel="stylesheet" href="./style.css">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🎬</text></svg>">
-</head>
-<body>
-    <header>
-        <div class="container">
-            <h1>🎬 PowerShell HEVC Converter</h1>
-            <p>Professional video conversion toolkit with advanced HEVC encoding capabilities</p>
-        </div>
-    </header>
-    <main class="container">
-        <div class="nav-links">
-            <a href="https://github.com/itsFelixH/powershell-hevc-converter">📁 Repository</a>
-            <a href="https://github.com/itsFelixH/powershell-hevc-converter/releases">📦 Releases</a>
-            <a href="https://github.com/itsFelixH/powershell-hevc-converter/issues">🐛 Issues</a>
-            <a href="https://github.com/itsFelixH/powershell-hevc-converter/discussions">💬 Discussions</a>
-        </div>
-        
-        <section>
-            <h2>🌟 Overview</h2>
-            <p>A comprehensive PowerShell toolkit for professional HEVC (H.265) video conversion with advanced features including:</p>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin: 1.5rem 0;">
-                <div style="padding: 1rem; background: #f8f9fa; border-radius: 8px; border-left: 4px solid var(--ps-blue);">
-                    <strong>🚀 Batch Processing</strong><br>
-                    Process multiple files with intelligent queuing
-                </div>
-                <div style="padding: 1rem; background: #f8f9fa; border-radius: 8px; border-left: 4px solid var(--success);">
-                    <strong>⚡ Hardware Acceleration</strong><br>
-                    NVENC, QSV, and VAAPI support
-                </div>
-                <div style="padding: 1rem; background: #f8f9fa; border-radius: 8px; border-left: 4px solid var(--warning);">
-                    <strong>📊 Quality Analysis</strong><br>
-                    VMAF, PSNR, and SSIM metrics
-                </div>
-                <div style="padding: 1rem; background: #f8f9fa; border-radius: 8px; border-left: 4px solid var(--info);">
-                    <strong>🎯 Smart Presets</strong><br>
-                    Content-aware encoding profiles
-                </div>
-            </div>
-        </section>
-
-        <section id="scripts">
-            <h2>📚 Available Scripts</h2>
-            <div class="script-grid">
-                {0}
-            </div>
-        </section>
-
-        <section>
-            <h2>🚀 Quick Start</h2>
-            <div style="background: #f8f9fa; padding: 2rem; border-radius: 8px; margin: 1rem 0;">
-                <h3>📋 Prerequisites</h3>
-                <ul>
-                    <li><strong>PowerShell 5.1+</strong> (Windows PowerShell or PowerShell Core)</li>
-                    <li><strong>FFmpeg</strong> with libx265 support in system PATH</li>
-                    <li><strong>Windows 10/11</strong> or compatible PowerShell environment</li>
-                </ul>
-                
-                <h3>⚡ Basic Usage</h3>
-                <pre><code class="language-powershell"># Convert all videos in current directory
-                    ./Convert-VideoToHEVC.ps1
-
-                    # Convert with custom settings
-                    ./Convert-VideoToHEVC.ps1 -inputFolder "C:\Videos" -crf 20 -preset slow
-
-                    # Use a preset profile
-                    ./Convert-VideoToHEVC.ps1 -Profile Animation
-                </code></pre>
-            </div>
-        </section>
-
-        <section>
-            <h2>🎯 Preset Profiles</h2>
-            <p>Choose from optimized encoding profiles for different content types:</p>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin: 1.5rem 0;">
-                <span class="badge badge-primary">🎨 Animation</span>
-                <span class="badge badge-success">🎬 Film</span>
-                <span class="badge badge-warning">🖥️ ScreenCapture</span>
-                <span class="badge badge-info">🏃 HighMotion</span>
-                <span class="badge badge-primary">🌙 LowLight</span>
-                <span class="badge badge-success">📱 MobileStream</span>
-                <span class="badge badge-warning">📺 SocialMedia</span>
-                <span class="badge badge-info">🏆 ArchiveQuality</span>
-                <span class="badge badge-primary">🎞️ FilmRestoration</span>
-                <span class="badge badge-success">🌈 HDR-8K</span>
-            </div>
-        </section>
-
-        <section>
-            <h2>📈 Performance Metrics</h2>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 2rem; margin: 2rem 0;">
-                <div style="text-align: center; padding: 1.5rem; background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
-                    <div style="font-size: 2rem; color: var(--success);">📉</div>
-                    <div style="font-size: 1.5rem; font-weight: bold; color: var(--ps-blue);">50-70%</div>
-                    <div style="color: var(--ps-dark-gray);">Size Reduction</div>
-                </div>
-                <div style="text-align: center; padding: 1.5rem; background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
-                    <div style="font-size: 2rem; color: var(--info);">⚡</div>
-                    <div style="font-size: 1.5rem; font-weight: bold; color: var(--ps-blue);">95+</div>
-                    <div style="color: var(--ps-dark-gray);">VMAF Quality</div>
-                </div>
-                <div style="text-align: center; padding: 1.5rem; background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
-                    <div style="font-size: 2rem; color: var(--warning);">🚀</div>
-                    <div style="font-size: 1.5rem; font-weight: bold; color: var(--ps-blue);">10x</div>
-                    <div style="color: var(--ps-dark-gray);">Faster Processing</div>
-                </div>
-            </div>
-        </section>
-    </main>
-    <footer class="container footer">
-        <p>🛠️ Built with PowerShell | 📚 Documentation generated on {1} | 🚀 Powered by GitHub Actions</p>
-        <p style="margin-top: 1rem;">
-            <a href="https://github.com/itsFelixH/powershell-hevc-converter" style="margin: 0 1rem;">GitHub</a>
-            <a href="https://github.com/itsFelixH/powershell-hevc-converter/issues" style="margin: 0 1rem;">Report Issues</a>
-            <a href="https://github.com/itsFelixH/powershell-hevc-converter/discussions" style="margin: 0 1rem;">Discussions</a>
-        </p>
-    </footer>
-</body>
-</html>
-'@ -f $scriptCards, $currentDate
+          $htmlContent = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>🎬 PowerShell HEVC Converter - Documentation</title><link rel="stylesheet" href="./style.css"><link rel="icon" href="data:image/svg+xml,<svg xmlns=`"http://www.w3.org/2000/svg`" viewBox=`"0 0 100 100`"><text y=`".9em`" font-size=`"90`">🎬</text></svg>"></head><body><header><div class="container"><h1>🎬 PowerShell HEVC Converter</h1><p>Professional video conversion toolkit with advanced HEVC encoding capabilities</p></div></header><main class="container"><div class="nav-links"><a href="https://github.com/itsFelixH/powershell-hevc-converter">📁 Repository</a><a href="https://github.com/itsFelixH/powershell-hevc-converter/releases">📦 Releases</a><a href="https://github.com/itsFelixH/powershell-hevc-converter/issues">🐛 Issues</a><a href="https://github.com/itsFelixH/powershell-hevc-converter/discussions">💬 Discussions</a></div><section><h2>🌟 Overview</h2><p>A comprehensive PowerShell toolkit for professional HEVC (H.265) video conversion with advanced features including:</p><div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin: 1.5rem 0;"><div style="padding: 1rem; background: #f8f9fa; border-radius: 8px; border-left: 4px solid var(--ps-blue);"><strong>🚀 Batch Processing</strong><br>Process multiple files with intelligent queuing</div><div style="padding: 1rem; background: #f8f9fa; border-radius: 8px; border-left: 4px solid var(--success);"><strong>⚡ Hardware Acceleration</strong><br>NVENC, QSV, and VAAPI support</div><div style="padding: 1rem; background: #f8f9fa; border-radius: 8px; border-left: 4px solid var(--warning);"><strong>📊 Quality Analysis</strong><br>VMAF, PSNR, and SSIM metrics</div><div style="padding: 1rem; background: #f8f9fa; border-radius: 8px; border-left: 4px solid var(--info);"><strong>🎯 Smart Presets</strong><br>Content-aware encoding profiles</div></div></section><section id="scripts"><h2>📚 Available Scripts</h2><div class="script-grid">' + $scriptCards + '</div></section><section><h2>🚀 Quick Start</h2><div style="background: #f8f9fa; padding: 2rem; border-radius: 8px; margin: 1rem 0;"><h3>📋 Prerequisites</h3><ul><li><strong>PowerShell 5.1+</strong> (Windows PowerShell or PowerShell Core)</li><li><strong>FFmpeg</strong> with libx265 support in system PATH</li><li><strong>Windows 10/11</strong> or compatible PowerShell environment</li></ul><h3>⚡ Basic Usage</h3><pre><code class="language-powershell"># Convert all videos in current directory`n./Convert-VideoToHEVC.ps1`n`n# Convert with custom settings`n./Convert-VideoToHEVC.ps1 -inputFolder "C:\Videos" -crf 20 -preset slow`n`n# Use a preset profile`n./Convert-VideoToHEVC.ps1 -Profile Animation</code></pre></div></section><section><h2>🎯 Preset Profiles</h2><p>Choose from optimized encoding profiles for different content types:</p><div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin: 1.5rem 0;"><span class="badge badge-primary">🎨 Animation</span><span class="badge badge-success">🎬 Film</span><span class="badge badge-warning">🖥️ ScreenCapture</span><span class="badge badge-info">🏃 HighMotion</span><span class="badge badge-primary">🌙 LowLight</span><span class="badge badge-success">📱 MobileStream</span><span class="badge badge-warning">📺 SocialMedia</span><span class="badge badge-info">🏆 ArchiveQuality</span><span class="badge badge-primary">🎞️ FilmRestoration</span><span class="badge badge-success">🌈 HDR-8K</span></div></section><section><h2>📈 Performance Metrics</h2><div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 2rem; margin: 2rem 0;"><div style="text-align: center; padding: 1.5rem; background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);"><div style="font-size: 2rem; color: var(--success);">📉</div><div style="font-size: 1.5rem; font-weight: bold; color: var(--ps-blue);">50-70%</div><div style="color: var(--ps-dark-gray);">Size Reduction</div></div><div style="text-align: center; padding: 1.5rem; background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);"><div style="font-size: 2rem; color: var(--info);">⚡</div><div style="font-size: 1.5rem; font-weight: bold; color: var(--ps-blue);">95+</div><div style="color: var(--ps-dark-gray);">VMAF Quality</div></div><div style="text-align: center; padding: 1.5rem; background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);"><div style="font-size: 2rem; color: var(--warning);">🚀</div><div style="font-size: 1.5rem; font-weight: bold; color: var(--ps-blue);">10x</div><div style="color: var(--ps-dark-gray);">Faster Processing</div></div></div></section></main><footer class="container footer"><p>🛠️ Built with PowerShell | 📚 Documentation generated on ' + (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') + ' | 🚀 Powered by GitHub Actions</p><p style="margin-top: 1rem;"><a href="https://github.com/itsFelixH/powershell-hevc-converter" style="margin: 0 1rem;">GitHub</a><a href="https://github.com/itsFelixH/powershell-hevc-converter/issues" style="margin: 0 1rem;">Report Issues</a><a href="https://github.com/itsFelixH/powershell-hevc-converter/discussions" style="margin: 0 1rem;">Discussions</a></p></footer></body></html>'
           Set-Content -Path ./docs/index.html -Value $htmlContent
 
       - name: 🚀 Deploy to GitHub Pages
