@@ -1,130 +1,264 @@
-# Powershell HEVC Video Converter Script
+# 🎬 PowerShell HEVC Video Converter Script
+
+<div align="center">
+
+[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue?style=for-the-badge&logo=github)](https://itsfelixh.github.io/powershell-hevc-converter/)
+[![Join Discussion](https://img.shields.io/badge/💬%20Join%20Discussion-orange?style=for-the-badge)](https://github.com/itsFelixH/powershell-hevc-converter/discussions)
+[![FFmpeg](https://img.shields.io/badge/FFmpeg-Required-green?style=for-the-badge&logo=ffmpeg)](https://ffmpeg.org/)
+
+</div>
 
 ## 🌟 Overview
 
-This PowerShell script automates the conversion of various video formats to HEVC (H.265) using FFmpeg, optimizing for file size while maintaining excellent quality. It's designed for efficient batch processing, handling files recursively within a specified input folder and organizing outputs into a dedicated output directory.
+This PowerShell script automates the conversion of various video formats to HEVC (H.265) using FFmpeg, optimizing for file size while maintaining excellent quality.
 
 ## ✨ Features
 
-* **Batch Conversion:** Process multiple video files (`.mkv`, `.mp4`, `.mov`, `.wmv`, `.avi`, `.flv`, `.m4v`) in a specified input directory and its subfolders.
-* **HEVC Encoding:** Utilizes the `libx265` encoder for highly efficient H.265 compression, providing a superior balance of quality and file size compared to older codecs like H.264.
-* **Customizable Quality:** Easily adjust output quality with the **Constant Rate Factor (CRF)** and choose from a range of encoding **presets** to balance speed and compression efficiency.
-* **Smart File Handling:** The script automatically skips already converted files, ensuring you don't waste time re-encoding.
-* **Robust Error Handling:** Conversion failures are caught, logged with detailed error messages, and the original problematic files are automatically moved to a `failed` folder for review.
-* **Comprehensive Logging:** All significant actions, warnings, and errors are logged to a timestamped file for easy troubleshooting and review.
-* **Performance Metrics:** Get a clear summary of total files processed, success and failure rates, total time elapsed, and the amount of disk space saved.
-* **Pre-flight Check:** The script validates that both `ffmpeg` and `ffprobe` are installed and available in your system's PATH before starting any conversions.
-* **Interactive Batching:** Optionally process files in smaller batches with an interactive prompt after each batch, giving you control over long-running jobs.
+| 🎯 **Smart Conversion** | 📊 **Quality Analysis** | ⚡ **Performance** | 🛠️ **Advanced Tools** |
+|:---:|:---:|:---:|:---:|
+| Batch processing | VMAF/PSNR/SSIM metrics | Hardware acceleration | Preset profiles |
+| Auto file detection | Compression analysis | Multi-threading | Settings optimization |
+| Error handling | Quality validation | Progress tracking | Integrity verification |
 
-## 🚀 Getting Started
+### 🎬 **Core Capabilities**
 
-### Prerequisites
+- **🔄 Batch Conversion**: Process multiple video files with intelligent queuing
+- **🎯 Smart Presets**: Content-aware encoding profiles (Animation, Film, ScreenCapture, etc.)
+- **⚡ Hardware Acceleration**: NVENC, QSV, and VAAPI support for faster encoding
+- **📊 Quality Metrics**: VMAF, PSNR, and SSIM analysis for quality assurance
+- **🛡️ Robust Error Handling**: Automatic failure recovery and detailed logging
+- **📈 Performance Tracking**: Real-time progress and comprehensive statistics
 
-* **FFmpeg and FFprobe:** These command-line tools are essential for the conversion process. They must be installed on your system and accessible via your system's **PATH** environment variable. You can download the latest version from the [official FFmpeg website](https://ffmpeg.org/download.html).
+## 📚 Documentation
 
-## 📖 Usage
+### 🔗 **Quick Links**
+
+- 📖 [**Complete Documentation**](https://itsfelixh.github.io/powershell-hevc-converter/) - Comprehensive guides and API reference
+- 🚀 [**Quick Start Guide**](#-quick-start) - Get up and running in minutes
+- 🎯 [**Preset Profiles**](#-preset-profiles) - Optimized settings for different content types
+- 💡 [**Examples**](#-examples) - Usage scenarios
+
+### 📋 **Script Overview**
+
+| Script | Description | Use Case |
+|--------|-------------|----------|
+| 🎬 [**Convert-VideoToHEVC.ps1**](https://itsfelixh.github.io/powershell-hevc-converter/Convert-VideoToHEVC.html) | Main conversion engine | Primary video conversion |
+| 📊 [**Analyze-Compression.ps1**](https://itsfelixh.github.io/powershell-hevc-converter/Analyze-Compression.html) | Quality & efficiency analysis | Post-conversion analysis |
+| ⚡ [**Optimize-HEVCSettings.ps1**](https://itsfelixh.github.io/powershell-hevc-converter/Optimize-HEVCSettings.html) | Settings optimization | Find optimal encoding parameters |
+| ✅ [**Verify-HEVCConversions.ps1**](https://itsfelixh.github.io/powershell-hevc-converter/Verify-HEVCConversions.html) | Integrity validation | Quality assurance & verification |
+
+---
+
+## 🚀 Quick Start
+
+### 📋 **Prerequisites**
+
+- **PowerShell:** Windows PowerShell or PowerShell Core.
+- **FFmpeg and FFprobe:** These command-line tools are essential for the conversion process. They must be installed on your system and accessible via your system's **PATH** environment variable. You can download the latest version from the [official FFmpeg website](https://ffmpeg.org/download.html).
+
+### 📖 **Usage**
 
 1. **Save the Script:** Save the provided PowerShell script as `Convert-VideoToHEVC.ps1` (or any `.ps1` filename) in a convenient location.
 2. **Open PowerShell:** Navigate to the directory where you saved the script.
 3. **Run the Script:** Execute the script from PowerShell.
 
-### Basic Usage
-
-To convert all supported video files in the current directory and its subfolders, saving the converted files to a new `converted` folder within the same location:
-
 ```powershell
-.\\Convert-VideoToHEVC.ps1
+# Convert all videos in current directory
+.\Convert-VideoToHEVC.ps1
 ```
 
-### Parameters
+## 🎯 Preset Profiles
 
-The script accepts the following parameters to customize its behavior:
+Choose from **10 optimized encoding profiles** tailored for different content types:
+
+| Profile | 🎯 Best For | CRF | Preset | Special Features |
+|---------|-------------|-----|--------|------------------|
+| 🎨 **Animation** | Cartoons, Anime | 22 | medium | Optimized for flat colors |
+| 🎬 **Film** | Movies, TV shows | 23 | slow | Balanced quality/size |
+| 🖥️ **ScreenCapture** | Tutorials, Demos | 18 | fast | Sharp text preservation |
+| 🏃 **HighMotion** | Sports, Action | 21 | medium | Motion optimization |
+| 🌙 **LowLight** | Dark scenes | 20 | slow | Noise reduction |
+| 📱 **MobileStream** | Mobile viewing | 26 | fast | Small file sizes |
+| 📺 **SocialMedia** | Web sharing | 24 | fast | Platform optimization |
+| 🏆 **ArchiveQuality** | Long-term storage | 18 | veryslow | Maximum quality |
+| 🎞️ **FilmRestoration** | Old content | 19 | slow | Artifact reduction |
+| 🌈 **HDR-8K** | High-end content | 20 | slow | HDR preservation |
+
+---
+
+## 💡 Examples
+
+### 🎬 **HEVC Conversion**
+
+```powershell
+# Convert all videos in a folder
+.\Convert-VideoToHEVC.ps1 -inputFolder "D:\Movies" -outputFolder "D:\HEVC_Movies"
+
+# Convert with custom quality settings
+.\Convert-VideoToHEVC.ps1 -inputFolder "C:\Videos" -crf 20 -preset slow
+
+# Use optimized preset for specific content
+.\Convert-VideoToHEVC.ps1 -Profile Animation -inputFolder "C:\Cartoons"
+
+# Batch processing with progress tracking
+.\Convert-VideoToHEVC.ps1 -batchSize 5 -DebugMode -LogToFile
+```
+
+### 📊 **Quality Analysis**
+
+```powershell
+# Analyze compression results
+.\Analyze-Compression.ps1 -SourcePath "D:\Original" -ConvertedPath "D:\HEVC" -OutputFormat HTML
+```
+
+### ⚡ **Settings Optimization**
+
+```powershell
+# Find optimal settings for your content
+.\Optimize-HEVCSettings.ps1 -InputPath "sample.mp4" -QualityTarget 95
+```
+
+### ✅ **Verification**
+
+```powershell
+# Verify conversion integrity
+.\Verify-HEVCConversions.ps1 -SourcePath "D:\Original" -ConvertedPath "D:\HEVC" -VerificationMode Full
+```
+
+---
+
+## 🛠️ Advanced Configuration
+
+### ⚙️ **Custom Parameters**
+
+```powershell
+# Advanced conversion with custom settings
+.\Convert-VideoToHEVC.ps1 `
+    -inputFolder "C:\Source" `
+    -outputFolder "C:\Output" `
+    -crf 22 `
+    -preset medium `
+    -batchSize 10 `
+    -DebugMode `
+    -LogToFile
+```
+
+<details>
+<summary><strong>ALL PARAMETERS</strong></summary>
 
 | Parameter Name | Type | Default Value | Description |
 | :------------- | :--- | :------------ | :---------- |
+| `-Profile` | `string` | (Absent) | Predefined encoding profile to use. Options: `Animation`, `Film`, `ScreenCapture`, `HighMotion`, `LowLight`, `MobileStream`, `SocialMedia`, `ArchiveQuality`, `FilmRestoration`, `HDR-8K`. |
 | `-inputFolder` | `string` | Current directory | Path to the folder containing video files to be converted. |
 | `-outputFolder` | `string` | `.\converted` | Path where converted HEVC video files will be saved. |
-| `-batchSize` | `int` | `0` (Disabled) |Number of files to process per batch. The script will pause and prompt for continuation after each batch. Set to `0` to process all files at once. |
+| `-batchSize` | `int` | `0` (Disabled) | Number of files to process per batch. The script will pause and prompt for continuation after each batch. Set to `0` to process all files at once. |
 | `-crf` | `int` | `23` | Constant Rate Factor (CRF) for `libx265` encoding (0-51). Lower values = higher quality, larger file size. |
 | `-preset` | `string` | `medium` | Encoding preset for `libx265`. Controls speed vs. compression efficiency. Options: `ultrafast`, `superfast`, `veryfast`, `faster`, `fast`, `medium`, `slow`, `slower`, `veryslow`, `placebo`. |
 | `-DebugMode` | `switch` | (Absent) | Enables verbose debugging output to the console and detailed log entries. |
 | `-LogToFile` | `switch` | (Absent) | Writes all console output to a separate log file for later review. |
 
-### Examples
+</details>
 
-**Convert with specific quality and preset:**
+### 🎨 **Creating Custom Profile Presets**
 
-```powershell
-.\Convert-VideoToHEVC.ps1 -inputFolder "C:\MyVideos" -outputFolder "C:\ConvertedVideos" -crf 20 -preset slow
+```json
+// Example: Custom preset for gaming content
+{
+    "name": "Gaming",
+    "description": "Optimized for gaming footage with fast motion",
+    "crf": 21,
+    "preset": "fast",
+    "extra_params": [
+        "-tune", "fastdecode",
+        "-x265-params", "bframes=3:b-adapt=2"
+    ]
+}
 ```
 
-*This command converts videos from `C:\MyVideos` to `C:\ConvertedVideos` using a CRF of 20 (higher quality than default) and the `slow` preset (which provides better compression at the cost of speed).*
+---
 
-**Enable interactive batching and debug logging:**
+## 🔧 Troubleshooting
 
-```powershell
-.\Convert-VideoToHEVC.ps1 -batchSize 5 -DebugMode
-```
+### ❓ **Common Issues**
 
-*This will process files in batches of 5, pausing after each batch to ask if you want to continue, and will also print verbose debug messages.*
-
-**Preview the conversion operations (Dry Run):**
+<details>
+<summary><strong>🚫 FFmpeg not found</strong></summary>
 
 ```powershell
-.\Convert-VideoToHEVC.ps1 -inputFolder ".\Source" -outputFolder ".\Output" -WhatIf
+# Verify FFmpeg installation
+where ffmpeg
+ffmpeg -version
+
+# Add to PATH if needed
+$env:PATH += ";C:\ffmpeg\bin"
 ```
 
-*Using the common PowerShell parameter `-WhatIf` will show you exactly what the script would do without actually performing any conversions or file movements.*
+</details>
 
-## Logging
+<details>
+<summary><strong>⚠️ libx265 not available</strong></summary>
 
-If the `-LogToFile` switch is used, the script generates a timestamped log file named `yyyy-MM-dd_HH-mm-ss_conversion.log` in the output folder. This log file contains:
+```powershell
+# Check for HEVC encoder
+ffmpeg -encoders | Select-String "libx265"
 
-* Timestamps for all events.
-* Severity levels (Info, Warning, Error, Debug, Success).
-* Details of each conversion, including file sizes and compression ratios.
-* Full FFmpeg error output for failed conversions.
+# Download FFmpeg with libx265 support
+# Visit: https://www.gyan.dev/ffmpeg/builds/
+```
 
-Review this log file for a complete history of operations and any issues encountered.
+</details>
 
-## Error Handling
+<details>
+<summary><strong>🐌 Slow conversion speeds</strong></summary>
 
-The script implements robust error handling using `Try/Catch` blocks.
+```powershell
+# Enable hardware acceleration
+.\Convert-VideoToHEVC.ps1 -Profile MobileStream  # Faster preset
 
-* If an FFmpeg conversion fails, the original file is moved to a `failed` subfolder within the input directory, and a detailed error log from FFmpeg is saved alongside it.
-* Partial output files from failed conversions are automatically deleted to prevent clutter.
+# Check for hardware encoders
+ffmpeg -hwaccels
+```
 
-## Advanced FFmpeg Considerations
+</details>
 
-The script uses a carefully selected set of FFmpeg options to ensure a good balance of quality, compression, and compatibility:
+### 📞 Support and Issues
 
-* **Threading:** The libx265 encoder automatically manages its own threading.
-* **Pixel Format (`-pix_fmt yuv420p10le`):** This setting encodes the video in 10-bit color depth, which often results in smaller files than 8-bit for a given quality level, while avoiding banding artifacts.
-* **Video Tag (`-tag:v hvc1`):** This tag ensures broader compatibility, particularly with Apple devices and modern media players.
-* **Discard Chapters (`-map_chapters -1`):** This helps reduce metadata overhead in the output file, keeping it clean and lightweight.
-* **Audio and Subtitle Passthrough (`-c:a copy -c:s copy`):** Audio and subtitle tracks are copied directly from the source file without re-encoding, saving time and preserving original quality.
-
-For more advanced FFmpeg options or to explore hardware acceleration (e.g., NVENC, QSV), refer to the [FFmpeg documentation](https://ffmpeg.org/documentation.html) and specific encoder guides (e.g., [H.265 Encoding Guide](https://trac.ffmpeg.org/wiki/Encode/H.265)).
+If you encounter any issues, have questions, or need assistance, please open an issue on the [GitHub Issues page](https://github.com/itsFelixH/powershell-hevc-converter/issues).
 
 ## 🤝 Contributing
 
-Contributions are welcome! Feel free to fork this repository, submit pull requests, or open issues for any improvements, bug fixes, or new features.
+Feel free to fork this repository, submit pull requests, or open issues for any improvements, bug fixes, or new features.
 
-1. Fork the repository.
-2. Create a new branch (`git checkout -b feature/your-feature-name`).
-3. Make your changes.
-4. Test your changes thoroughly.
-5. Commit your changes (`git commit -m "feat: Add new feature"`).
-6. Push to the branch (`git push origin feature/your-feature-name`).
-7. Open a Pull Request to the main branch.
+### 🎯 **Ways to Contribute**
 
-Please ensure your code adheres to PowerShell best practices and includes appropriate comment-based help for any new functions or parameters.
+- 🐛 **Bug Reports**: [Open an issue](https://github.com/itsFelixH/powershell-hevc-converter/issues)
+- 💡 **Feature Requests**: [Start a discussion](https://github.com/itsFelixH/powershell-hevc-converter/discussions)
+- 🔧 **Code Contributions**: Submit a pull request
 
-## 📄 Documentation
+### 🚀 **Development Setup**
 
-Detailed documentation for all functions and parameters is available on [GitHub Pages](https://itsfelixh.github.io/powershell-hevc-converter/).
-This documentation is automatically generated via a GitHub Actions workflow.
+```powershell
+# 1. Fork and clone the repository
+git clone https://github.com/YOUR-USERNAME/powershell-hevc-converter.git
+cd powershell-hevc-converter
 
-## 📞 Support and Issues
+# 2. Create feature branch
+git checkout -b feature/your-feature-name
 
-If you encounter any issues, have questions, or need assistance, please open an issue on the [GitHub Issues page](https://github.com/itsFelixH/powershell-hevc-converter/issues).
+# 3. Make changes and test
+
+# 4. Commit and push
+git commit -m "feat: Add new feature"
+git push origin feature/your-feature-name
+
+# 5. Open a Pull Request to the main branch.
+```
+
+---
+
+<div align="center">
+
+[![View Documentation](https://img.shields.io/badge/📚%20View%20Documentation-blue?style=for-the-badge)](https://itsfelixh.github.io/powershell-hevc-converter/)
+
+
+</div>
