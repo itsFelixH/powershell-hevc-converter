@@ -173,7 +173,7 @@ jobs:
 
           # Convert all Markdown files to HTML
           Get-ChildItem ./docs -Filter *.md | ForEach-Object {
-              $html = ConvertFrom-Markdown -Path $_.FullName -AsHtmlFragment
+              $html = (ConvertFrom-Markdown -Path $_.FullName).Html
               $title = $_.BaseName
               
               $fullHtml = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>' + $title + ' - PowerShell HEVC Converter</title><link rel="stylesheet" href="./style.css"><link rel="icon" href="data:image/svg+xml,<svg xmlns=`"http://www.w3.org/2000/svg`" viewBox=`"0 0 100 100`"><text y=`".9em`" font-size=`"90`">🎬</text></svg>"></head><body><header><div class="container"><h1>🎬 ' + $title + '</h1><p>PowerShell HEVC Video Converter Documentation</p></div></header><main class="container"><div class="nav-links"><a href="./index.html">🏠 Home</a><a href="https://github.com/itsFelixH/powershell-hevc-converter">📁 Repository</a><a href="https://github.com/itsFelixH/powershell-hevc-converter/issues">🐛 Issues</a></div>' + $html + '</main><footer class="container footer"><p>📚 Documentation generated on ' + (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') + ' | 🚀 Powered by PowerShell & GitHub Actions</p></footer></body></html>'
