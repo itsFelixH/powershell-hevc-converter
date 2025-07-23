@@ -1,12 +1,12 @@
-# 🎬 PowerShell HEVC Video Converter Script
-
 <div align="center">
 
 [![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue?style=for-the-badge&logo=github)](https://itsfelixh.github.io/powershell-hevc-converter/)
-[![Join Discussion](https://img.shields.io/badge/💬%20Join%20Discussion-orange?style=for-the-badge)](https://github.com/itsFelixH/powershell-hevc-converter/discussions)
+![GitHub Discussions](https://img.shields.io/github/discussions/itsfelixh/powershell-hevc-converter?style=for-the-badge)
 [![FFmpeg](https://img.shields.io/badge/FFmpeg-Required-green?style=for-the-badge&logo=ffmpeg)](https://ffmpeg.org/)
 
 </div>
+
+# 🎬 PowerShell HEVC Video Converter Script
 
 ## 🌟 Overview
 
@@ -47,8 +47,6 @@ This PowerShell script automates the conversion of various video formats to HEVC
 | ⚡ [**Optimize-HEVCSettings.ps1**](https://itsfelixh.github.io/powershell-hevc-converter/Optimize-HEVCSettings.html) | Settings optimization | Find optimal encoding parameters |
 | ✅ [**Verify-HEVCConversions.ps1**](https://itsfelixh.github.io/powershell-hevc-converter/Verify-HEVCConversions.html) | Integrity validation | Quality assurance & verification |
 
----
-
 ## 🚀 Quick Start
 
 ### 📋 **Prerequisites**
@@ -83,8 +81,6 @@ Choose from **10 optimized encoding profiles** tailored for different content ty
 | 🏆 **ArchiveQuality** | Long-term storage | 18 | veryslow | Maximum quality |
 | 🎞️ **FilmRestoration** | Old content | 19 | slow | Artifact reduction |
 | 🌈 **HDR-8K** | High-end content | 20 | slow | HDR preservation |
-
----
 
 ## 💡 Examples
 
@@ -125,8 +121,6 @@ Choose from **10 optimized encoding profiles** tailored for different content ty
 .\Verify-HEVCConversions.ps1 -SourcePath "D:\Original" -ConvertedPath "D:\HEVC" -VerificationMode Full
 ```
 
----
-
 ## 🛠️ Advanced Configuration
 
 ### ⚙️ **Custom Parameters**
@@ -161,8 +155,9 @@ Choose from **10 optimized encoding profiles** tailored for different content ty
 
 ### 🎨 **Creating Custom Profile Presets**
 
+Example: Custom preset for gaming content
+
 ```json
-// Example: Custom preset for gaming content
 {
     "name": "Gaming",
     "description": "Optimized for gaming footage with fast motion",
@@ -174,8 +169,6 @@ Choose from **10 optimized encoding profiles** tailored for different content ty
     ]
 }
 ```
-
----
 
 ## 🔧 Troubleshooting
 
@@ -253,12 +246,3 @@ git push origin feature/your-feature-name
 
 # 5. Open a Pull Request to the main branch.
 ```
-
----
-
-<div align="center">
-
-[![View Documentation](https://img.shields.io/badge/📚%20View%20Documentation-blue?style=for-the-badge)](https://itsfelixh.github.io/powershell-hevc-converter/)
-
-
-</div>
