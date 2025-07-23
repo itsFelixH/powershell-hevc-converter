@@ -544,7 +544,7 @@ jobs:
                   <section id="scripts">
                       <h2>📚 Available Scripts</h2>
                       <div class="script-grid">
-          $scriptCards
+                          $scriptCards
                       </div>
                   </section>
 
@@ -560,13 +560,14 @@ jobs:
                           
                           <h3>⚡ Basic Usage</h3>
                           <pre><code class="language-powershell"># Convert all videos in current directory
-./Convert-VideoToHEVC.ps1
+                              ./Convert-VideoToHEVC.ps1
 
-# Convert with custom settings
-./Convert-VideoToHEVC.ps1 -inputFolder "C:\Videos" -crf 20 -preset slow
+                              # Convert with custom settings
+                              ./Convert-VideoToHEVC.ps1 -inputFolder "C:\Videos" -crf 20 -preset slow
 
-# Use a preset profile
-./Convert-VideoToHEVC.ps1 -Profile Animation</code></pre>
+                              # Use a preset profile
+                              ./Convert-VideoToHEVC.ps1 -Profile Animation
+                          </code></pre>
                       </div>
                   </section>
 
@@ -618,7 +619,7 @@ jobs:
               </footer>
           </body>
           </html>
-"@
+          "@
           Set-Content -Path ./docs/index.html -Value $htmlContent
 
       - name: 🚀 Deploy to GitHub Pages
