@@ -202,14 +202,30 @@ ffmpeg -encoders | Select-String "libx265"
 </details>
 
 <details>
-<summary><strong>🐌 Slow conversion speeds</strong></summary>
+<summary><strong>🐌 Conversion taking too long</strong></summary>
 
 ```powershell
-# Enable hardware acceleration
-.\Convert-VideoToHEVC.ps1 -Profile MobileStream  # Faster preset
+# Use a faster preset
+.\Convert-VideoToHEVC.ps1 -preset faster -crf 26
 
-# Check for hardware encoders
-ffmpeg -hwaccels
+# Process smaller batches
+.\Convert-VideoToHEVC.ps1 -batchSize 3
+```
+
+</details>
+
+<details>
+<summary><strong>📉 Quality issues in output</strong></summary>
+
+```powershell
+# Use a lower CRF value (higher quality)
+.\Convert-VideoToHEVC.ps1 -crf 18
+
+# Use a slower preset for better quality
+.\Convert-VideoToHEVC.ps1 -preset slow
+
+# Use quality-optimized profile
+.\Convert-VideoToHEVC.ps1 -Profile ArchiveQuality
 ```
 
 </details>
