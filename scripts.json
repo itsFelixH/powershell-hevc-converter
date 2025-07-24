@@ -1,0 +1,26 @@
+[
+  {
+    "Description": "Main conversion script with advanced HEVC encoding",
+    "Path": "./Convert-VideoToHEVC.ps1",
+    "Name": "Convert-VideoToHEVC",
+    "Icon": "🎬"
+  },
+  {
+    "Description": "Comprehensive analysis of compression efficiency and quality",
+    "Path": "./Analyze-Compression.ps1",
+    "Name": "Analyze-Compression",
+    "Icon": "📊"
+  },
+  {
+    "Description": "Finds optimal encoding settings for specific content",
+    "Path": "./Optimize-HEVCSettings.ps1",
+    "Name": "Optimize-HEVCSettings",
+    "Icon": "⚡"
+  },
+  {
+    "Description": "Validates conversion integrity and quality",
+    "Path": "./Verify-HEVCConversions.ps1",
+    "Name": "Verify-HEVCConversions",
+    "Icon": "✅"
+  }
+]
