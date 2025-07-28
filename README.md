@@ -1,7 +1,10 @@
 <div align="center">
 
 [![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue?style=for-the-badge&logo=github)](https://itsfelixh.github.io/powershell-hevc-converter/)
-![GitHub Discussions](https://img.shields.io/github/discussions/itsfelixh/powershell-hevc-converter?style=for-the-badge)
+![Last Commit](https://img.shields.io/github/last-commit/itsfelixh/powershell-hevc-converter?style=for-the-badge)
+![Issues](https://img.shields.io/github/issues/itsfelixh/powershell-hevc-converter?style=for-the-badge)
+![Windows](https://img.shields.io/badge/Windows-10%2F11-blue?style=for-the-badge&logo=windows)
+![HEVC](https://img.shields.io/badge/HEVC-H.265-red?style=for-the-badge)
 [![FFmpeg](https://img.shields.io/badge/FFmpeg-Required-green?style=for-the-badge&logo=ffmpeg)](https://ffmpeg.org/)
 
 </div>
@@ -241,7 +244,6 @@ Feel free to fork this repository, submit pull requests, or open issues for any 
 ### 🎯 **Ways to Contribute**
 
 - 🐛 **Bug Reports**: [Open an issue](https://github.com/itsFelixH/powershell-hevc-converter/issues)
-- 💡 **Feature Requests**: [Start a discussion](https://github.com/itsFelixH/powershell-hevc-converter/discussions)
 - 🔧 **Code Contributions**: Submit a pull request
 
 ### 🚀 **Development Setup**
