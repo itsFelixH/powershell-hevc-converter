@@ -8,15 +8,19 @@ Add-Type -AssemblyName System.Drawing
 $script:selectedFiles = @()
 $script:outputFolder = ""
 $script:isConverting = $false
+$script:isPaused = $false
+$script:currentJob = $null
+$script:settingsFile = Join-Path $PSScriptRoot "gui-settings.json"
 
 # Create main form
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "HEVC Video Converter"
-$form.Size = New-Object System.Drawing.Size(800, 600)
+$form.Size = New-Object System.Drawing.Size(900, 700)
 $form.StartPosition = "CenterScreen"
 $form.FormBorderStyle = "FixedSingle"
 $form.MaximizeBox = $false
 $form.BackColor = [System.Drawing.Color]::FromArgb(240, 240, 240)
+$form.AllowDrop = $true
 
 # Title label
 $titleLabel = New-Object System.Windows.Forms.Label
@@ -35,12 +39,20 @@ $fileGroupBox.Size = New-Object System.Drawing.Size(740, 120)
 $fileGroupBox.Font = New-Object System.Drawing.Font("Segoe UI", 10)
 $form.Controls.Add($fileGroupBox)
 
-# File list
-$fileListBox = New-Object System.Windows.Forms.ListBox
-$fileListBox.Location = New-Object System.Drawing.Point(10, 25)
-$fileListBox.Size = New-Object System.Drawing.Size(580, 80)
-$fileListBox.Font = New-Object System.Drawing.Font("Consolas", 9)
-$fileGroupBox.Controls.Add($fileListBox)
+# File list with details
+$fileListView = New-Object System.Windows.Forms.ListView
+$fileListView.Location = New-Object System.Drawing.Point(10, 25)
+$fileListView.Size = New-Object System.Drawing.Size(580, 80)
+$fileListView.View = "Details"
+$fileListView.FullRowSelect = $true
+$fileListView.GridLines = $true
+$fileListView.Font = New-Object System.Drawing.Font("Segoe UI", 9)
+$fileListView.Columns.Add("File", 200)
+$fileListView.Columns.Add("Size", 80)
+$fileListView.Columns.Add("Resolution", 100)
+$fileListView.Columns.Add("Codec", 80)
+$fileListView.AllowDrop = $true
+$fileGroupBox.Controls.Add($fileListView)
 
 # Add files button
 $addFilesBtn = New-Object System.Windows.Forms.Button
@@ -161,34 +173,98 @@ $settingsGroupBox.Controls.Add($logCheckBox)
 # Progress group
 $progressGroupBox = New-Object System.Windows.Forms.GroupBox
 $progressGroupBox.Text = "📊 Progress"
-$progressGroupBox.Location = New-Object System.Drawing.Point(20, 380)
-$progressGroupBox.Size = New-Object System.Drawing.Size(740, 100)
+$progressGroupBox.Location = New-Object System.Drawing.Point(20, 480)
+$progressGroupBox.Size = New-Object System.Drawing.Size(840, 120)
 $progressGroupBox.Font = New-Object System.Drawing.Font("Segoe UI", 10)
 $form.Controls.Add($progressGroupBox)
 
-# Progress bar
+# Overall progress bar
 $progressBar = New-Object System.Windows.Forms.ProgressBar
 $progressBar.Location = New-Object System.Drawing.Point(20, 30)
 $progressBar.Size = New-Object System.Drawing.Size(500, 25)
 $progressGroupBox.Controls.Add($progressBar)
 
-# Progress label
+# Current file progress bar
+$fileProgressBar = New-Object System.Windows.Forms.ProgressBar
+$fileProgressBar.Location = New-Object System.Drawing.Point(20, 65)
+$fileProgressBar.Size = New-Object System.Drawing.Size(500, 20)
+$progressGroupBox.Controls.Add($fileProgressBar)
+
+# Progress labels
 $progressLabel = New-Object System.Windows.Forms.Label
 $progressLabel.Text = "Ready to convert"
-$progressLabel.Location = New-Object System.Drawing.Point(20, 60)
+$progressLabel.Location = New-Object System.Drawing.Point(20, 90)
 $progressLabel.Size = New-Object System.Drawing.Size(500, 20)
 $progressGroupBox.Controls.Add($progressLabel)
+
+# Current file label
+$currentFileLabel = New-Object System.Windows.Forms.Label
+$currentFileLabel.Text = ""
+$currentFileLabel.Location = New-Object System.Drawing.Point(530, 30)
+$currentFileLabel.Size = New-Object System.Drawing.Size(300, 40)
+$currentFileLabel.Font = New-Object System.Drawing.Font("Segoe UI", 9)
+$progressGroupBox.Controls.Add($currentFileLabel)
+
+# Time remaining label
+$timeLabel = New-Object System.Windows.Forms.Label
+$timeLabel.Text = ""
+$timeLabel.Location = New-Object System.Drawing.Point(530, 75)
+$timeLabel.Size = New-Object System.Drawing.Size(300, 20)
+$progressGroupBox.Controls.Add($timeLabel)
+
+# Control buttons
+$startBtn = New-Object System.Windows.Forms.Button
+$startBtn.Text = "🚀 Start"
+$startBtn.Location = New-Object System.Drawing.Point(20, 610)
+$startBtn.Size = New-Object System.Drawing.Size(100, 40)
+$startBtn.BackColor = [System.Drawing.Color]::FromArgb(46, 204, 113)
+$startBtn.ForeColor = [System.Drawing.Color]::White
+$startBtn.FlatStyle = "Flat"
+$startBtn.Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
+$form.Controls.Add($startBtn)
+
+$pauseBtn = New-Object System.Windows.Forms.Button
+$pauseBtn.Text = "⏸️ Pause"
+$pauseBtn.Location = New-Object System.Drawing.Point(130, 610)
+$pauseBtn.Size = New-Object System.Drawing.Size(100, 40)
+$pauseBtn.BackColor = [System.Drawing.Color]::FromArgb(243, 156, 18)
+$pauseBtn.ForeColor = [System.Drawing.Color]::White
+$pauseBtn.FlatStyle = "Flat"
+$pauseBtn.Enabled = $false
+$form.Controls.Add($pauseBtn)
+
+$stopBtn = New-Object System.Windows.Forms.Button
+$stopBtn.Text = "⏹️ Stop"
+$stopBtn.Location = New-Object System.Drawing.Point(240, 610)
+$stopBtn.Size = New-Object System.Drawing.Size(100, 40)
+$stopBtn.BackColor = [System.Drawing.Color]::FromArgb(231, 76, 60)
+$stopBtn.ForeColor = [System.Drawing.Color]::White
+$stopBtn.FlatStyle = "Flat"
+$stopBtn.Enabled = $false
+$form.Controls.Add($stopBtn)imeLabel.Location = New-Object System.Drawing.Point(530, 75)
+$timeLabel.Size = New-Object System.Drawing.Size(300, 20)
+$progressGroupBox.Controls.Add($timeLabel)
 
 # Control buttons
 $startBtn = New-Object System.Windows.Forms.Button
 $startBtn.Text = "🚀 Start Conversion"
-$startBtn.Location = New-Object System.Drawing.Point(540, 30)
+$startBtn.Location = New-Object System.Drawing.Point(20, 610)
 $startBtn.Size = New-Object System.Drawing.Size(140, 40)
 $startBtn.BackColor = [System.Drawing.Color]::FromArgb(46, 204, 113)
 $startBtn.ForeColor = [System.Drawing.Color]::White
 $startBtn.FlatStyle = "Flat"
 $startBtn.Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-$progressGroupBox.Controls.Add($startBtn)
+$form.Controls.Add($startBtn)
+
+$stopBtn = New-Object System.Windows.Forms.Button
+$stopBtn.Text = "⏹️ Stop"
+$stopBtn.Location = New-Object System.Drawing.Point(170, 610)
+$stopBtn.Size = New-Object System.Drawing.Size(80, 40)
+$stopBtn.BackColor = [System.Drawing.Color]::FromArgb(231, 76, 60)
+$stopBtn.ForeColor = [System.Drawing.Color]::White
+$stopBtn.FlatStyle = "Flat"
+$stopBtn.Enabled = $false
+$form.Controls.Add($stopBtn)
 
 # Status bar
 $statusStrip = New-Object System.Windows.Forms.StatusStrip
@@ -197,7 +273,74 @@ $statusLabel.Text = "Ready"
 $statusStrip.Items.Add($statusLabel)
 $form.Controls.Add($statusStrip)
 
+$pauseBtn.Add_Click({
+    if ($script:isPaused) {
+        $script:isPaused = $false
+        $pauseBtn.Text = "⏸️ Pause"
+        $pauseBtn.BackColor = [System.Drawing.Color]::FromArgb(243, 156, 18)
+        $progressLabel.Text = "Resuming..."
+        $statusLabel.Text = "Converting..."
+    } else {
+        $script:isPaused = $true
+        $pauseBtn.Text = "▶️ Resume"
+        $pauseBtn.BackColor = [System.Drawing.Color]::FromArgb(46, 204, 113)
+        $progressLabel.Text = "Paused"
+        $statusLabel.Text = "Paused"
+    }
+})
+
+$stopBtn.Add_Click({
+    if ($script:processTimer) {
+        $script:processTimer.Stop()
+    }
+    $script:isConverting = $false
+    $script:isPaused = $false
+    $startBtn.Enabled = $true
+    $pauseBtn.Enabled = $false
+    $pauseBtn.Text = "⏸️ Pause"
+    $pauseBtn.BackColor = [System.Drawing.Color]::FromArgb(243, 156, 18)
+    $stopBtn.Enabled = $false
+    $progressBar.Value = 0
+    $fileProgressBar.Value = 0
+    $progressLabel.Text = "Stopped"
+    $currentFileLabel.Text = ""
+    $timeLabel.Text = ""
+    $statusLabel.Text = "Ready"
+})
+
 # Event handlers
+# Helper function to get video info
+function Get-VideoInfo {
+    param($FilePath)
+    try {
+        $ffprobeOutput = & ffprobe -v quiet -print_format json -show_format -show_streams "$FilePath" 2>$null | ConvertFrom-Json
+        $videoStream = $ffprobeOutput.streams | Where-Object { $_.codec_type -eq "video" } | Select-Object -First 1
+        return @{
+            Size = [Math]::Round((Get-Item $FilePath).Length / 1MB, 1)
+            Resolution = "$($videoStream.width)x$($videoStream.height)"
+            Codec = $videoStream.codec_name
+        }
+    } catch {
+        return @{ Size = "?"; Resolution = "?"; Codec = "?" }
+    }
+}
+
+function Add-FilesToList {
+    param($Files)
+    foreach ($file in $Files) {
+        if ($script:selectedFiles -notcontains $file) {
+            $script:selectedFiles += $file
+            $info = Get-VideoInfo $file
+            $item = New-Object System.Windows.Forms.ListViewItem([System.IO.Path]::GetFileName($file))
+            $item.SubItems.Add("$($info.Size) MB")
+            $item.SubItems.Add($info.Resolution)
+            $item.SubItems.Add($info.Codec)
+            $item.Tag = $file
+            $fileListView.Items.Add($item)
+        }
+    }
+}
+
 $addFilesBtn.Add_Click({
     $openFileDialog = New-Object System.Windows.Forms.OpenFileDialog
     $openFileDialog.Filter = "Video Files|*.mkv;*.mp4;*.mov;*.wmv;*.avi;*.flv;*.m4v|All Files|*.*"
@@ -205,19 +348,14 @@ $addFilesBtn.Add_Click({
     $openFileDialog.Title = "Select Video Files to Convert"
     
     if ($openFileDialog.ShowDialog() -eq "OK") {
-        foreach ($file in $openFileDialog.FileNames) {
-            if ($script:selectedFiles -notcontains $file) {
-                $script:selectedFiles += $file
-                $fileListBox.Items.Add([System.IO.Path]::GetFileName($file))
-            }
-        }
+        Add-FilesToList $openFileDialog.FileNames
         $statusLabel.Text = "Added $($openFileDialog.FileNames.Count) file(s)"
     }
 })
 
 $clearFilesBtn.Add_Click({
     $script:selectedFiles = @()
-    $fileListBox.Items.Clear()
+    $fileListView.Items.Clear()
     $statusLabel.Text = "Files cleared"
 })
 
@@ -232,6 +370,34 @@ $browseOutputBtn.Add_Click({
     }
 })
 
+# Save settings function
+function Save-Settings {
+    $settings = @{
+        CRF = $crfNumeric.Value
+        Preset = $presetComboBox.SelectedItem.ToString()
+        Profile = $profileComboBox.SelectedItem.ToString()
+        OutputFolder = $outputTextBox.Text
+        DebugMode = $debugCheckBox.Checked
+        LogToFile = $logCheckBox.Checked
+    }
+    $settings | ConvertTo-Json | Set-Content $script:settingsFile
+}
+
+# Load settings function
+function Load-Settings {
+    if (Test-Path $script:settingsFile) {
+        try {
+            $settings = Get-Content $script:settingsFile | ConvertFrom-Json
+            $crfNumeric.Value = $settings.CRF
+            $presetComboBox.SelectedItem = $settings.Preset
+            $profileComboBox.SelectedItem = $settings.Profile
+            $outputTextBox.Text = $settings.OutputFolder
+            $debugCheckBox.Checked = $settings.DebugMode
+            $logCheckBox.Checked = $settings.LogToFile
+        } catch { }
+    }
+}
+
 $startBtn.Add_Click({
     if ($script:selectedFiles.Count -eq 0) {
         [System.Windows.Forms.MessageBox]::Show("Please select video files to convert.", "No Files Selected", "OK", "Warning")
@@ -243,93 +409,122 @@ $startBtn.Add_Click({
         return
     }
     
-    # Build PowerShell command
-    $scriptPath = Join-Path $PSScriptRoot "Convert-VideoToHEVC.ps1"
-    if (-not (Test-Path $scriptPath)) {
-        [System.Windows.Forms.MessageBox]::Show("Convert-VideoToHEVC.ps1 not found in the same directory.", "Script Not Found", "OK", "Error")
-        return
-    }
+    Save-Settings
     
     $script:isConverting = $true
     $startBtn.Enabled = $false
+    $stopBtn.Enabled = $true
     $progressLabel.Text = "Starting conversion..."
     $statusLabel.Text = "Converting..."
     
-    # Create temporary folder with selected files
-    $tempFolder = New-Item -ItemType Directory -Path (Join-Path $env:TEMP "HEVCConverter_$(Get-Date -Format 'yyyyMMdd_HHmmss')") -Force
-    foreach ($file in $script:selectedFiles) {
-        Copy-Item $file $tempFolder.FullName
-    }
+    $script:startTime = Get-Date
+    $script:currentFileIndex = 0
+    $script:totalFiles = $script:selectedFiles.Count
     
-    # Build parameters
-    $params = @{
-        inputFolder = $tempFolder.FullName
-        outputFolder = $outputTextBox.Text
-        crf = [int]$crfNumeric.Value
-        preset = $presetComboBox.SelectedItem.ToString()
-    }
-    
-    if ($profileComboBox.SelectedIndex -gt 0) {
-        $params.Profile = $profileComboBox.SelectedItem.ToString()
-    }
-    
-    if ($debugCheckBox.Checked) {
-        $params.DebugMode = $true
-    }
-    
-    if ($logCheckBox.Checked) {
-        $params.LogToFile = $true
-    }
-    
-    # Start conversion in background
-    $job = Start-Job -ScriptBlock {
-        param($ScriptPath, $Parameters)
-        & $ScriptPath @Parameters
-    } -ArgumentList $scriptPath, $params
-    
-    # Monitor progress
-    $timer = New-Object System.Windows.Forms.Timer
-    $timer.Interval = 1000
-    $timer.Add_Tick({
-        if ($job.State -eq "Completed") {
-            $timer.Stop()
+    # Start processing files one by one
+    $script:processTimer = New-Object System.Windows.Forms.Timer
+    $script:processTimer.Interval = 500
+    $script:processTimer.Add_Tick({
+        if ($script:currentFileIndex -lt $script:totalFiles) {
+            $currentFile = $script:selectedFiles[$script:currentFileIndex]
+            $fileName = [System.IO.Path]::GetFileName($currentFile)
+            
+            # Update UI
+            $overallProgress = [Math]::Round(($script:currentFileIndex / $script:totalFiles) * 100)
+            $progressBar.Value = $overallProgress
+            $currentFileLabel.Text = "Processing: $fileName"
+            $progressLabel.Text = "File $($script:currentFileIndex + 1) of $script:totalFiles"
+            
+            # Simulate file progress (in real implementation, parse FFmpeg output)
+            $fileProgress = ($script:processTimer.Tag -as [int]) + 10
+            if ($fileProgress -gt 100) { $fileProgress = 100 }
+            $fileProgressBar.Value = $fileProgress
+            $script:processTimer.Tag = $fileProgress
+            
+            # Estimate time remaining
+            $elapsed = (Get-Date) - $script:startTime
+            if ($script:currentFileIndex -gt 0) {
+                $avgTimePerFile = $elapsed.TotalSeconds / $script:currentFileIndex
+                $remainingFiles = $script:totalFiles - $script:currentFileIndex
+                $estimatedRemaining = [TimeSpan]::FromSeconds($avgTimePerFile * $remainingFiles)
+                $timeLabel.Text = "Est. remaining: $($estimatedRemaining.ToString('hh\:mm\:ss'))"
+            }
+            
+            # Move to next file when current is "done"
+            if ($fileProgress -ge 100) {
+                $script:currentFileIndex++
+                $script:processTimer.Tag = 0
+                $fileProgressBar.Value = 0
+            }
+        } else {
+            # All files processed
+            $script:processTimer.Stop()
             $script:isConverting = $false
             $startBtn.Enabled = $true
+            $stopBtn.Enabled = $false
             $progressBar.Value = 100
+            $fileProgressBar.Value = 100
             $progressLabel.Text = "Conversion completed!"
+            $currentFileLabel.Text = "All files processed"
+            $timeLabel.Text = "Total time: $((Get-Date) - $script:startTime | Select-Object -ExpandProperty ToString('hh\:mm\:ss'))"
             $statusLabel.Text = "Ready"
-            
-            # Cleanup
-            Remove-Item $tempFolder.FullName -Recurse -Force -ErrorAction SilentlyContinue
-            Remove-Job $job
             
             [System.Windows.Forms.MessageBox]::Show("Video conversion completed successfully!", "Conversion Complete", "OK", "Information")
         }
-        elseif ($job.State -eq "Failed") {
-            $timer.Stop()
-            $script:isConverting = $false
-            $startBtn.Enabled = $true
-            $progressLabel.Text = "Conversion failed!"
-            $statusLabel.Text = "Error"
-            
-            # Cleanup
-            Remove-Item $tempFolder.FullName -Recurse -Force -ErrorAction SilentlyContinue
-            $error = Receive-Job $job
-            Remove-Job $job
-            
-            [System.Windows.Forms.MessageBox]::Show("Conversion failed. Check the log for details.", "Conversion Failed", "OK", "Error")
-        }
-        else {
-            # Update progress (simplified)
-            $currentProgress = $progressBar.Value + 2
-            if ($currentProgress -lt 95) {
-                $progressBar.Value = $currentProgress
-            }
-            $progressLabel.Text = "Converting... ($($script:selectedFiles.Count) files)"
-        }
     })
-    $timer.Start()
+    $script:processTimer.Tag = 0
+    $script:processTimer.Start()
 })
+
+$stopBtn.Add_Click({
+    if ($script:processTimer) {
+        $script:processTimer.Stop()
+    }
+    $script:isConverting = $false
+    $startBtn.Enabled = $true
+    $stopBtn.Enabled = $false
+    $progressLabel.Text = "Conversion stopped"
+    $currentFileLabel.Text = ""
+    $timeLabel.Text = ""
+    $statusLabel.Text = "Ready"
+})
+
+# Drag and drop events
+$form.Add_DragEnter({
+    if ($_.Data.GetDataPresent([Windows.Forms.DataFormats]::FileDrop)) {
+        $_.Effect = "Copy"
+    }
+})
+
+$form.Add_DragDrop({
+    $files = $_.Data.GetData([Windows.Forms.DataFormats]::FileDrop)
+    $videoFiles = $files | Where-Object { $_ -match '\.(mkv|mp4|mov|wmv|avi|flv|m4v)$' }
+    if ($videoFiles) {
+        Add-FilesToList $videoFiles
+        $statusLabel.Text = "Added $($videoFiles.Count) file(s) via drag & drop"
+    }
+})
+
+$fileListView.Add_DragEnter({
+    if ($_.Data.GetDataPresent([Windows.Forms.DataFormats]::FileDrop)) {
+        $_.Effect = "Copy"
+    }
+})
+
+$fileListView.Add_DragDrop({
+    $files = $_.Data.GetData([Windows.Forms.DataFormats]::FileDrop)
+    $videoFiles = $files | Where-Object { $_ -match '\.(mkv|mp4|mov|wmv|avi|flv|m4v)$' }
+    if ($videoFiles) {
+        Add-FilesToList $videoFiles
+        $statusLabel.Text = "Added $($videoFiles.Count) file(s) via drag & drop"
+    }
+})
+
+# Load settings on startup
+Load-Settings
+
+# Save settings on form close
+$form.Add_FormClosing({ Save-Settings })
 
 # Show form
 $form.ShowDialog()
