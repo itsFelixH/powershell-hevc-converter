@@ -13,15 +13,15 @@
 
 ## 🌟 Overview
 
-This PowerShell script automates the conversion of various video formats to HEVC (H.265) using FFmpeg, optimizing for file size while maintaining excellent quality.
+This toolkit provides both a **GUI application** and PowerShell scripts for converting various video formats to HEVC (H.265) using FFmpeg, optimizing for file size while maintaining excellent quality.
 
 ## ✨ Features
 
-| 🎯 **Smart Conversion** | 📊 **Quality Analysis** | ⚡ **Performance** | 🛠️ **Advanced Tools** |
+| 🖥️ **Simple GUI** | 🎯 **Smart Conversion** | 📊 **Quality Analysis** | ⚡ **Performance** |
 |:---:|:---:|:---:|:---:|
-| Batch processing | VMAF/PSNR/SSIM metrics | Hardware acceleration | Preset profiles |
-| Auto file detection | Compression analysis | Multi-threading | Settings optimization |
-| Error handling | Quality validation | Progress tracking | Integrity verification |
+| Drag-and-drop interface | Batch processing | VMAF/PSNR/SSIM metrics | Hardware acceleration |
+| Visual progress tracking | Auto file detection | Compression analysis | Multi-threading |
+| One-click operation | Error handling | Quality validation | Preset profiles |
 
 ### 🎬 **Core Capabilities**
 
@@ -59,9 +59,21 @@ This PowerShell script automates the conversion of various video formats to HEVC
 
 ### 📖 **Usage**
 
-1. **Save the Script:** Save the provided PowerShell script as `Convert-VideoToHEVC.ps1` (or any `.ps1` filename) in a convenient location.
-2. **Open PowerShell:** Navigate to the directory where you saved the script.
-3. **Run the Script:** Execute the script from PowerShell.
+#### 🖥️ **GUI Application (Recommended)**
+
+1. **Download:** Download all files to a folder
+2. **Double-click:** `HEVC-Converter.vbs` to launch the GUI
+3. **Use the Interface:**
+   - Click "Add Files" to select videos
+   - Choose quality settings and presets
+   - Click "🚀 Start Conversion"
+
+> **Note:** The VBS launcher works on all Windows systems without additional software.
+
+#### 💻 **Command Line (Advanced)**
+
+1. **Open PowerShell:** Navigate to the script directory
+2. **Run the Script:** Execute from PowerShell
 
 ```powershell
 # Convert all videos in current directory
