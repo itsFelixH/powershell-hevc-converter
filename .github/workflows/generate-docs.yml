@@ -118,7 +118,7 @@ jobs:
           Set-Content -Path ./docs/index.html -Value $indexHtml
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
           path: ./docs
 
